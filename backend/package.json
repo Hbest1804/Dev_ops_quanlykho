@@ -1,0 +1,18 @@
+{
+  "name": "quanlykho",
+  "version": "1.0.0",
+  "description": "Quản lý kho - Express.js API",
+  "type": "module",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js"
+  },
+  "dependencies": {
+    "express": "5.2.1",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
