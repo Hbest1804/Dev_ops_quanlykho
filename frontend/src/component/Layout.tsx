@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Package, LayoutDashboard, PackageSearch, ArrowDownToLine, ArrowUpFromLine, Users, LogOut, Plus, Search, Bell, User, BarChart2 } from 'lucide-react';
-// import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const ALL_MENU_ITEMS = [
   { id: 'dashboard', label: 'Bảng điều khiển', icon: LayoutDashboard, roles: ['admin', 'warehouse_staff', 'accountant'] },
@@ -12,16 +12,16 @@ const ALL_MENU_ITEMS = [
 ];
 
 export default function Layout({ currentView, setView, onLogout, children }: { currentView: string, setView: (v: string) => void, onLogout: () => void, children: ReactNode }) {
-//  const { profile } = useAuth();
+ const { profile } = useAuth();
   
-//  const userRole = profile?.role || 'warehouse_staff';
+ const userRole = profile?.role || 'warehouse_staff';
   const roleLabels: Record<string, string> = {
     admin: 'Quản trị viên',
     warehouse_staff: 'Thủ kho',
     accountant: 'Kế toán'
   };
   
-//   const MENU_ITEMS = ALL_MENU_ITEMS.filter(item => item.roles.includes(userRole));
+  const MENU_ITEMS = ALL_MENU_ITEMS.filter(item => item.roles.includes(userRole));
 
   return (
     <div className="flex h-screen bg-[#f8f9ff] overflow-hidden">
@@ -34,19 +34,19 @@ export default function Layout({ currentView, setView, onLogout, children }: { c
             </div>
             <div>
               <h1 className="text-lg font-bold text-slate-900 leading-tight">Quản Lý Kho</h1>
-              {/* <p className="text-xs text-slate-500 font-medium tracking-wide">{roleLabels[userRole]?.toUpperCase()}</p> */}
+              <p className="text-xs text-slate-500 font-medium tracking-wide">{roleLabels[userRole]?.toUpperCase()}</p>
             </div>
           </div>
-          {/* {['admin', 'warehouse_staff'].includes(userRole) && (
+          {['admin', 'warehouse_staff'].includes(userRole) && (
             <button className="w-full bg-[#0058be] hover:bg-[#2170e4] text-white py-2.5 rounded flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-sm">
               <Plus size={18} />
               Giao dịch mới
             </button>
-          )} */}
+          )}
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-1">
-          {/* {MENU_ITEMS.map((item) => {
+          {MENU_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = currentView === item.id;
             return (
@@ -63,7 +63,7 @@ export default function Layout({ currentView, setView, onLogout, children }: { c
                 {item.label}
               </button>
             );
-          })} */}
+          })}
         </div>
         
         <div className="p-4 border-t border-slate-200 flex flex-col gap-1">
