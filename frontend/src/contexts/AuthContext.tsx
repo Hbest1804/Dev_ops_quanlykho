@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { ReactNode, createContext, useContext, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
 type Profile = {
@@ -18,7 +18,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>({} as any);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
