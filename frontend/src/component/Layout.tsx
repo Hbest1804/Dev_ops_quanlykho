@@ -1,27 +1,33 @@
-import { ReactNode } from 'react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { Package, LayoutDashboard, PackageSearch, ArrowDownToLine, ArrowUpFromLine, Users, LogOut, Plus, Search, Bell, User, BarChart2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const ALL_MENU_ITEMS = [
-  { id: 'dashboard', label: 'Bảng điều khiển', icon: LayoutDashboard, roles: ['admin', 'warehouse_staff', 'accountant'] },
-  { id: 'products', label: 'Sản phẩm', icon: PackageSearch, roles: ['admin', 'warehouse_staff'] },
-  { id: 'stock-in', label: 'Nhập kho', icon: ArrowDownToLine, roles: ['admin', 'warehouse_staff'] },
-  { id: 'stock-out', label: 'Xuất kho', icon: ArrowUpFromLine, roles: ['admin', 'warehouse_staff'] },
-  { id: 'reports', label: 'Báo cáo', icon: BarChart2, roles: ['admin', 'accountant'] },
-  { id: 'users', label: 'Người dùng', icon: Users, roles: ['admin'] },
+  { path: '/', label: 'Bảng điều khiển', icon: LayoutDashboard, roles: ['admin', 'warehouse_staff', 'accountant'], end: true },
+  { path: '/products', label: 'Sản phẩm', icon: PackageSearch, roles: ['admin', 'warehouse_staff'] },
+  { path: '/stock-in', label: 'Nhập kho', icon: ArrowDownToLine, roles: ['admin', 'warehouse_staff'] },
+  { path: '/stock-out', label: 'Xuất kho', icon: ArrowUpFromLine, roles: ['admin', 'warehouse_staff'] },
+  { path: '/reports', label: 'Báo cáo', icon: BarChart2, roles: ['admin', 'accountant'] },
+  { path: '/users', label: 'Người dùng', icon: Users, roles: ['admin'] },
 ];
 
-export default function Layout({ currentView, setView, onLogout, children }: { currentView: string, setView: (v: string) => void, onLogout: () => void, children: ReactNode }) {
- const { profile } = useAuth();
-  
- const userRole = profile?.role || 'warehouse_staff';
+export default function Layout() {
+  const { profile, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const userRole = profile?.role || 'warehouse_staff';
   const roleLabels: Record<string, string> = {
     admin: 'Quản trị viên',
     warehouse_staff: 'Thủ kho',
     accountant: 'Kế toán'
   };
-  
+
   const MENU_ITEMS = ALL_MENU_ITEMS.filter(item => item.roles.includes(userRole));
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <div className="flex h-screen bg-[#f8f9ff] overflow-hidden">
@@ -44,51 +50,57 @@ export default function Layout({ currentView, setView, onLogout, children }: { c
             </button>
           )}
         </div>
-        
+
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-1">
           {MENU_ITEMS.map((item) => {
             const Icon = item.icon;
-            const isActive = currentView === item.id;
             return (
-              <button
-                key={item.id}
-                onClick={() => setView(item.id)}
-                className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'text-blue-700 bg-blue-50 border-l-4 border-blue-600 rounded-l-none'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.end}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'text-blue-700 bg-blue-50 border-l-4 border-blue-600 rounded-l-none'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`
+                }
               >
-                <Icon size={20} className={isActive ? 'text-blue-600' : 'text-slate-400'} />
-                {item.label}
-              </button>
+                {({ isActive }) => (
+                  <>
+                    <Icon size={20} className={isActive ? 'text-blue-600' : 'text-slate-400'} />
+                    {item.label}
+                  </>
+                )}
+              </NavLink>
             );
           })}
         </div>
-        
+
         <div className="p-4 border-t border-slate-200 flex flex-col gap-1">
-          <button onClick={onLogout} className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+          <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
             <LogOut size={20} className="text-red-500" />
             Đăng xuất
           </button>
         </div>
       </aside>
-      
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-10 sticky top-0 shadow-sm">
           <div className="flex items-center gap-4 flex-1">
             <div className="relative w-full max-w-md hidden md:block">
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Tìm kiếm..." 
+              <input
+                type="text"
+                placeholder="Tìm kiếm..."
                 className="w-full pl-10 pr-4 py-2 flex-1 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:border-[#0058be] focus:ring-1 focus:ring-[#0058be]"
               />
             </div>
             <h2 className="font-bold md:hidden text-lg">Quản Lý Kho</h2>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-full relative transition-colors">
               <Bell size={20} />
@@ -99,10 +111,10 @@ export default function Layout({ currentView, setView, onLogout, children }: { c
             </div>
           </div>
         </header>
-        
+
         <main className="flex-1 overflow-y-auto p-6 bg-[#f8f9ff]">
           <div className="max-w-[1600px] mx-auto">
-            {children}
+            <Outlet />
           </div>
         </main>
       </div>
