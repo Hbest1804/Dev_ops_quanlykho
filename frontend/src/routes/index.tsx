@@ -9,6 +9,7 @@ import StockIn from '../pages/StockIn';
 import StockInDetail from '../pages/StockInDetail';
 import StockOut from '../pages/StockOut';
 import StockOutDetail from '../pages/StockOutDetail';
+import Reports from '../pages/Reports';
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -29,6 +30,7 @@ export default function AppRoutes() {
         <Route path="stock-in/:id" element={<StockInDetail />} />
         <Route path="stock-out" element={<StockOut />} />
         <Route path="stock-out/:id" element={<StockOutDetail />} />
+        <Route path="reports" element={<Reports />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
