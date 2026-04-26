@@ -112,8 +112,8 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6 bg-[#f8f9ff]">
-          <div className="max-w-[1600px] mx-auto">
+        <main className="flex-1 overflow-y-auto p-6 bg-[#f8f9ff] flex flex-col">
+          <div className="max-w-[1600px] w-full mx-auto flex-1 flex flex-col">
             <Outlet />
           </div>
         </main>

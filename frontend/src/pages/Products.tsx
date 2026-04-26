@@ -108,7 +108,7 @@ export default function Products() {
   });
 
   return (
-    <div className="space-y-6 flex flex-col h-[calc(100vh-theme(spacing.32))] relative">
+    <div className="space-y-6 flex flex-col flex-1 relative">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div>
           <h2 className="text-2xl font-semibold text-[#0b1c30]">Quản lý Sản phẩm</h2>

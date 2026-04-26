@@ -5,6 +5,8 @@ import Layout from '../component/Layout';
 import Dashboard from '../pages/Dashboard';
 import Login from '../pages/Login';
 import Products from '../pages/Products';
+import StockIn from '../pages/StockIn';
+import StockInDetail from '../pages/StockInDetail';
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -21,6 +23,8 @@ export default function AppRoutes() {
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="products" element={<Products />} />
+        <Route path="stock-in" element={<StockIn />} />
+        <Route path="stock-in/:id" element={<StockInDetail />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
