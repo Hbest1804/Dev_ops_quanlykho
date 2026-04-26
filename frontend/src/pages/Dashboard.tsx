@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { ArrowDownToLine, ArrowUpToLine, Download, Package, Table, TrendingDown, TrendingUp, AlertTriangle, MoreHorizontal } from 'lucide-react';
 import { exportToExcel, exportToPDF } from '../lib/export';
+import CustomSelect from '../component/CustomSelect';
 
 export default function Dashboard() {
+  const [chartRange, setChartRange] = useState('7 Ngày qua');
 
     return (
         <div className="space-y-6">
@@ -97,10 +100,13 @@ export default function Dashboard() {
                 <div className="lg:col-span-2 bg-white rounded-lg border border-slate-200 shadow-sm flex flex-col min-h-[400px]">
                     <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                         <h3 className="text-lg font-semibold text-slate-900">Xu hướng Nhập / Xuất</h3>
-                        <select className="text-sm border border-slate-200 bg-white rounded px-3 py-1 outline-none text-slate-600">
-                            <option>7 Ngày qua</option>
-                            <option>30 Ngày qua</option>
-                        </select>
+                        <div className="w-36">
+                          <CustomSelect
+                            value={chartRange}
+                            onChange={setChartRange}
+                            options={['7 Ngày qua', '30 Ngày qua']}
+                          />
+                        </div>
                     </div>
                     <div className="p-5 flex-1 relative flex flex-col pt-10">
                         <div className="absolute top-0 right-5 flex gap-4 text-xs font-medium mt-3">

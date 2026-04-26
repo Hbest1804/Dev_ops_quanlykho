@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { exportToExcel } from '../lib/export';
 import CategoryPickerDrawer from '../component/CategoryPickerDrawer';
 import CustomSelect from '../component/CustomSelect';
+import { useConfirm } from '../component/useConfirm';
 
 type Product = {
   id: string;
@@ -27,6 +28,7 @@ const INITIAL_PRODUCTS: Product[] = [
 ];
 
 export default function Products() {
+  const { confirm, dialog } = useConfirm();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -58,6 +60,8 @@ export default function Products() {
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
+    if (!formData.sku.trim()) { toast.error('Vui lòng nhập mã SKU'); return; }
+    if (!formData.name.trim()) { toast.error('Vui lòng nhập tên sản phẩm'); return; }
     if (editingId) {
       setProducts(products.map(p => p.id === editingId ? { ...p, ...formData, updated_at: new Date().toISOString() } : p));
       toast.success('Đã cập nhật sản phẩm');
@@ -75,9 +79,10 @@ export default function Products() {
     closeModal();
   };
 
-  const handleDelete = (id: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xoá sản phẩm này?')) return;
-    setProducts(products.filter(p => p.id !== id));
+  const handleDelete = async (id: string) => {
+    if (!await confirm({ title: 'Xoá sản phẩm', message: 'Bạn có chắc muốn xoá sản phẩm này? Hành động không thể hoàn tác.', confirmLabel: 'Xoá', variant: 'danger' })) return;
+    setProducts(prev => prev.filter(p => p.id !== id));
+    if (selectedProduct?.id === id) setSelectedProduct(null);
     toast.success('Đã xoá sản phẩm');
   };
 
@@ -109,6 +114,7 @@ export default function Products() {
 
   return (
     <div className="space-y-6 flex flex-col flex-1 relative">
+      {dialog}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div>
           <h2 className="text-2xl font-semibold text-[#0b1c30]">Quản lý Sản phẩm</h2>
@@ -286,7 +292,7 @@ export default function Products() {
                 <Edit2 size={16} /> Chỉnh sửa
               </button>
               <button
-                onClick={() => { handleDelete(selectedProduct.id); setSelectedProduct(null); }}
+                onClick={() => handleDelete(selectedProduct.id)}
                 className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors cursor-pointer"
               >
                 <Trash2 size={16} />
@@ -315,7 +321,7 @@ export default function Products() {
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSave} className="p-6 flex flex-col gap-4">
+            <form onSubmit={handleSave} noValidate className="p-6 flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-slate-700">Mã SP (SKU) *</label>
                 <input required type="text" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-[#0058be] focus:ring-1 focus:ring-[#0058be] outline-none text-sm" placeholder="VD: PRD-1001" />
@@ -344,13 +350,11 @@ export default function Products() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-slate-700">Đơn vị tính</label>
-                  <select value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-[#0058be] focus:ring-1 focus:ring-[#0058be] outline-none text-sm bg-white cursor-pointer">
-                    <option>Cái</option>
-                    <option>Bộ</option>
-                    <option>KG</option>
-                    <option>Hộp</option>
-                    <option>Cuộn</option>
-                  </select>
+                  <CustomSelect
+                    value={formData.unit}
+                    onChange={v => setFormData({ ...formData, unit: v })}
+                    options={['Cái', 'Bộ', 'KG', 'Hộp', 'Cuộn', 'Đôi']}
+                  />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
