@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { ArrowDownToLine, ArrowUpToLine, Download, Package, Table, TrendingDown, TrendingUp, AlertTriangle, MoreHorizontal } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpToLine, Download, Package, Table, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { exportToExcel, exportToPDF } from '../lib/export';
 import CustomSelect from '../component/CustomSelect';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [chartRange, setChartRange] = useState('7 Ngày qua');
 
     return (
@@ -149,9 +151,8 @@ export default function Dashboard() {
                 </div>
 
                 <div className="bg-white rounded-lg border border-slate-200 shadow-sm flex flex-col">
-                    <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                    <div className="p-5 border-b border-slate-100 bg-slate-50/50">
                         <h3 className="text-lg font-semibold text-slate-900">Sản phẩm xuất nhiều</h3>
-                        <button className="text-slate-400 hover:text-slate-600 transition-colors"><MoreHorizontal size={20} /></button>
                     </div>
                     <div className="flex-1 overflow-x-auto">
                         <table className="w-full text-left border-collapse">
@@ -181,7 +182,7 @@ export default function Dashboard() {
                         </table>
                     </div>
                     <div className="p-3 border-t border-slate-100 bg-slate-50/50 text-center">
-                        <button className="text-sm font-medium text-[#0058be] hover:underline w-full py-1">Xem chi tiết</button>
+                        <button onClick={() => navigate('/reports')} className="text-sm font-medium text-[#0058be] hover:underline w-full py-1 cursor-pointer">Xem chi tiết</button>
                     </div>
                 </div>
             </div>
