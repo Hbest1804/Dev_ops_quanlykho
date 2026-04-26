@@ -1,6 +1,6 @@
-import { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Download, Plus, Search, ChevronDown, History, Edit2, Trash2, X, ChevronRight } from 'lucide-react';
+import { Download, Plus, Search, History, Edit2, Trash2, X, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../lib/export';
 import CategoryPickerDrawer from '../component/CategoryPickerDrawer';
@@ -58,7 +58,7 @@ export default function Products() {
     }, 500);
   }, []);
 
-  const handleSave = async (e: FormEvent) => {
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!formData.sku.trim()) { toast.error('Vui lòng nhập mã SKU'); return; }
     if (!formData.name.trim()) { toast.error('Vui lòng nhập tên sản phẩm'); return; }
