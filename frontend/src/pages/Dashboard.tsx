@@ -14,10 +14,10 @@ export default function Dashboard() {
                     <p className="text-sm text-[#45474c] mt-1">Chỉ số thống kê kho hàng theo thời gian thực.</p>
                 </div>
                 <div className="flex gap-3">
-                    <button onClick={exportToPDF} className="flex items-center gap-2 border border-[#c5c6cd] bg-white px-4 py-2 rounded text-sm font-medium text-[#0b1c30] hover:bg-gray-50 transition-colors">
+                    <button onClick={exportToPDF} className="flex items-center gap-2 border border-[#c5c6cd] bg-white px-4 py-2 rounded text-sm font-medium text-[#0b1c30] hover:bg-gray-50 transition-colors cursor-pointer">
                         <Download size={16} /> Xuất PDF
                     </button>
-                    <button onClick={() => exportToExcel} className="flex items-center gap-2 border border-[#c5c6cd] bg-white px-4 py-2 rounded text-sm font-medium text-[#0b1c30] hover:bg-gray-50 transition-colors">
+                    <button onClick={() => exportToExcel} className="flex items-center gap-2 border border-[#c5c6cd] bg-white px-4 py-2 rounded text-sm font-medium text-[#0b1c30] hover:bg-gray-50 transition-colors cursor-pointer">
                         <Table size={16} /> Xuất Excel
                     </button>
                 </div>

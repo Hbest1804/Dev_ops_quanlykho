@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Download, Plus, Search, History, Edit2, Trash2, X, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../lib/export';
 import CategoryPickerDrawer from '../component/CategoryPickerDrawer';
@@ -28,6 +29,7 @@ const INITIAL_PRODUCTS: Product[] = [
 ];
 
 export default function Products() {
+  const navigate = useNavigate();
   const { confirm, dialog } = useConfirm();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -211,7 +213,7 @@ export default function Products() {
                   </td>
                   <td className="py-3 px-4 text-right" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer" title="Lịch sử"><History size={18} /></button>
+                      <button onClick={() => navigate(`/transactions/${p.sku}`)} className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer" title="Lịch sử"><History size={18} /></button>
                       <button onClick={() => openEditModal(p)} className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer" title="Chỉnh sửa"><Edit2 size={18} /></button>
                       <button onClick={() => handleDelete(p.id)} className="text-slate-400 hover:text-red-600 p-1 cursor-pointer" title="Xoá"><Trash2 size={18} /></button>
                     </div>
@@ -284,19 +286,28 @@ export default function Products() {
                 </div>
               </div>
             </div>
-            <div className="p-4 border-t border-slate-100 flex gap-3">
+            <div className="p-4 border-t border-slate-100 flex flex-col gap-3">
               <button
-                onClick={() => openEditModal(selectedProduct)}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg transition-colors cursor-pointer"
+                onClick={() => navigate(`/transactions/${selectedProduct.sku}`)}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-[#0058be] bg-[#e5eeff] hover:bg-[#d0e4ff] rounded-lg transition-colors cursor-pointer"
               >
-                <Edit2 size={16} /> Chỉnh sửa
+                <span className="flex items-center gap-2"><History size={16} /> Xem lịch sử giao dịch</span>
+                <ChevronRight size={16} />
               </button>
-              <button
-                onClick={() => handleDelete(selectedProduct.id)}
-                className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors cursor-pointer"
-              >
-                <Trash2 size={16} />
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => openEditModal(selectedProduct)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg transition-colors cursor-pointer"
+                >
+                  <Edit2 size={16} /> Chỉnh sửa
+                </button>
+                <button
+                  onClick={() => handleDelete(selectedProduct.id)}
+                  className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
           </div>
         </>,
