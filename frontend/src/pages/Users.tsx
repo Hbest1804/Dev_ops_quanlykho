@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { UserPlus, Search, X, Eye, EyeOff } from 'lucide-react';
 import CustomSelect from '../component/CustomSelect';
 import toast from 'react-hot-toast';
+import api from '../lib/api';
 
 type User = {
   id: number;
@@ -45,11 +46,6 @@ const getInitials = (name: string) =>
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
 
-const INITIAL_USERS: User[] = [
-  { id: 1, name: 'Nguyễn Nam', email: 'nam.nguyen@congty.com', password: '', role: 'admin', status: 'active', created_at: '2024-01-10T08:00:00Z', updated_at: '2024-04-01T08:00:00Z' },
-  { id: 2, name: 'Trần Lan', email: 'lan.tran@congty.com', password: '', role: 'warehouse_staff', status: 'active', created_at: '2024-02-01T09:00:00Z', updated_at: '2024-04-01T09:00:00Z' },
-  { id: 3, name: 'Lê Minh', email: 'minh.le@congty.com', password: '', role: 'accountant', status: 'active', created_at: '2024-03-05T07:30:00Z', updated_at: '2024-04-01T07:30:00Z' },
-];
 
 type AddForm = { name: string; email: string; password: string; role: string; };
 const EMPTY_ADD: AddForm = { name: '', email: '', password: '', role: 'Thủ kho' };
@@ -57,8 +53,12 @@ const EMPTY_ADD: AddForm = { name: '', email: '', password: '', role: 'Thủ kho
 type EditForm = { name: string; email: string; password: string; role: string; status: string; };
 
 export default function Users() {
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    api.get('/users').then(({ data }) => setUsers(data.data)).catch(() => toast.error('Không tải được danh sách người dùng'));
+  }, []);
 
   // Add modal
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -94,24 +94,27 @@ export default function Users() {
 
   const closeDrawer = () => setSelectedUser(null);
 
-  const handleAdd = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!addForm.name.trim()) { toast.error('Vui lòng nhập họ và tên'); return; }
     if (!addForm.email.trim()) { toast.error('Vui lòng nhập email'); return; }
     if (!addForm.password.trim()) { toast.error('Vui lòng nhập mật khẩu'); return; }
-    const now = new Date().toISOString();
-    setUsers(prev => [{
-      id: Date.now(),
-      name: addForm.name.trim(),
-      email: addForm.email.trim(),
-      password: addForm.password,
-      role: ROLE_VALUES[addForm.role],
-      status: 'active',
-      created_at: now,
-      updated_at: now,
-    }, ...prev]);
-    toast.success('Đã thêm người dùng mới');
-    closeAddModal();
+    if (addForm.password.length < 8) { toast.error('Mật khẩu tối thiểu 8 ký tự'); return; }
+    try {
+      const { data } = await api.post('/users', {
+        name: addForm.name.trim(),
+        email: addForm.email.trim(),
+        password: addForm.password,
+        role: ROLE_VALUES[addForm.role],
+      });
+      setUsers(prev => [data.data, ...prev]);
+      toast.success('Đã thêm người dùng mới');
+      closeAddModal();
+    } catch (err: any) {
+      const msg = err.response?.data?.message;
+      if (err.response?.status === 409) toast.error('Email đã được sử dụng');
+      else toast.error(msg || 'Thêm người dùng thất bại');
+    }
   };
 
   const handleSaveEdit = (e: React.FormEvent<HTMLFormElement>) => {
