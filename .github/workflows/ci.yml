@@ -140,7 +140,7 @@ jobs:
             -d quanlykho \
             -f ../wareflow_schema.sql
 
-      - name: 🚀 Smoke-test: start server then ping health
+      - name: "🚀 Smoke-test: start server then ping health"
         run: |
           node src/app.js &
           SERVER_PID=$!
