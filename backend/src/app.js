@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import cors from 'cors';
 import authRouter from './routes/Auth.js';
 import { notFound, errorHandler } from './middlewares/ErrorHandler.js';
 import { pool } from './db/Pool.js';
@@ -7,6 +8,11 @@ import { seedAdminUser } from './db/Seed.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  credentials: true,
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
