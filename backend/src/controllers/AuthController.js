@@ -1,5 +1,6 @@
 import { AuthService } from '../services/AuthService.js';
-import { BadRequest } from '../utils/AppError.js';
+import { BadRequest, Unauthorized, Forbidden } from '../utils/AppError.js';
+import { UserRepository } from '../repositories/UserRepository.js';
 
 const REFRESH_COOKIE = 'refreshToken';
 const COOKIE_OPTS = {
@@ -24,6 +25,17 @@ export const AuthController = {
 
       res.cookie(REFRESH_COOKIE, refreshToken, COOKIE_OPTS);
       res.json({ accessToken, user });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async me(req, res, next) {
+    try {
+      const user = await UserRepository.findById(req.user.sub);
+      if (!user) return next(Unauthorized('Người dùng không tồn tại'));
+      if (user.status === 'disabled') return next(Forbidden('Tài khoản đã bị vô hiệu hoá'));
+      res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
     } catch (err) {
       next(err);
     }
