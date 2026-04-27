@@ -21,15 +21,24 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=$GEMINI_API_KEY" \
-          -H "Content-Type: application/json" \
-          -d "{
-            \"contents\": [{
-              \"parts\": [{
-                \"text\": \"Review this code diff and suggest fixes:\\n\\n$(cat diff.txt)\"
-              }]
-            }]
-          }")
+          # Build JSON body safely via Python to avoid "Argument list too long"
+          python3 - <<'EOF'
+          import json, pathlib
+
+          diff = pathlib.Path("diff.txt").read_text(encoding="utf-8", errors="replace")
+          prompt = f"Review this code diff and suggest fixes:\n\n{diff}"
+          body = {
+              "contents": [
+                  {"parts": [{"text": prompt}]}
+              ]
+          }
+          pathlib.Path("body.json").write_text(json.dumps(body), encoding="utf-8")
+          EOF
+
+          RESPONSE=$(curl -s -X POST \
+            "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=$GEMINI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d @body.json)
 
           echo "$RESPONSE" > result.txt
 
