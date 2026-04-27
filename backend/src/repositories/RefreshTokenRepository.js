@@ -66,6 +66,15 @@ export const RefreshTokenRepository = {
     return newRaw;
   },
 
+  async findByRaw(raw) {
+    const hash = hashToken(raw);
+    const { rows } = await pool.query(
+      'SELECT * FROM refresh_tokens WHERE token = $1',
+      [hash]
+    );
+    return rows[0] ?? null;
+  },
+
   async revoke(raw) {
     const hash = hashToken(raw);
     await pool.query(

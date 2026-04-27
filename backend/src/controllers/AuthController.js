@@ -41,6 +41,23 @@ export const AuthController = {
     }
   },
 
+  async refresh(req, res, next) {
+    try {
+      const raw = req.cookies?.[REFRESH_COOKIE];
+      if (!raw) return next(BadRequest('No refresh token cookie'));
+
+      const { accessToken, refreshToken } = await AuthService.refresh(raw, {
+        userAgent: req.headers['user-agent'],
+        ipAddress: req.ip,
+      });
+
+      res.cookie(REFRESH_COOKIE, refreshToken, COOKIE_OPTS);
+      res.json({ success: true, data: { accessToken } });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async logout(req, res, next) {
     try {
       const raw = req.cookies?.[REFRESH_COOKIE];

@@ -35,6 +35,25 @@ export const AuthService = {
     };
   },
 
+  async refresh(rawToken, meta = {}) {
+    const record = await RefreshTokenRepository.findValid(rawToken);
+
+    if (!record) {
+      const any = await RefreshTokenRepository.findByRaw(rawToken);
+      if (any?.is_revoked && any.replaced_by) {
+        await RefreshTokenRepository.revokeAllForUser(any.user_id);
+        throw Unauthorized('Token reuse detected. All sessions revoked.');
+      }
+      throw Unauthorized('Invalid or expired refresh token');
+    }
+
+    const user       = await UserRepository.findById(record.user_id);
+    const newRaw     = await RefreshTokenRepository.rotate(rawToken, record.user_id, meta);
+    const accessToken = signAccess(user);
+
+    return { accessToken, refreshToken: newRaw };
+  },
+
   async logout(rawRefreshToken) {
     await RefreshTokenRepository.revoke(rawRefreshToken);
   },
