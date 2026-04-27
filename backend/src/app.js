@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import authRouter from './routes/Auth.js';
 import { notFound, errorHandler } from './middlewares/ErrorHandler.js';
 import { pool } from './db/Pool.js';
@@ -16,6 +17,7 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
