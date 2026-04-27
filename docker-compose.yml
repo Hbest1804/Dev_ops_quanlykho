@@ -26,10 +26,15 @@ services:
       PORT: ${BACKEND_PORT:-3000}
       NODE_ENV: development
       POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrator}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     volumes:
@@ -45,6 +50,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: development
+      BACKEND_URL: http://backend:3000
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     volumes:

@@ -1,21 +1,28 @@
 import 'dotenv/config';
 import express from 'express';
-import router from './routes/index.js';
-import { notFound, errorHandler } from './middlewares/errorHandler.js';
-import { pool } from './db/pool.js';
+import cors from 'cors';
+import authRouter from './routes/Auth.js';
+import { notFound, errorHandler } from './middlewares/ErrorHandler.js';
+import { pool } from './db/Pool.js';
+import { seedAdminUser } from './db/Seed.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check endpoint – dùng cho CI smoke test & container orchestration
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-app.use('/api', router);
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.use('/api/auth', authRouter);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -25,14 +32,13 @@ async function start() {
     const client = await pool.connect();
     client.release();
     console.log('Database connected');
+    await seedAdminUser();
   } catch (err) {
     console.error('Database connection failed:', err.message);
     process.exit(1);
   }
 
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 
 start();
