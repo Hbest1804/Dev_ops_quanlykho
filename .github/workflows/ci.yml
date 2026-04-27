@@ -117,6 +117,10 @@ jobs:
       POSTGRES_DB: quanlykho
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      JWT_SECRET: ci-test-secret-not-for-production
+      ADMIN_EMAIL: admin@ci.local
+      ADMIN_PASSWORD: adminpass123
+      CORS_ORIGIN: http://localhost:5173
 
     steps:
       - name: ⬇️ Checkout code
@@ -146,7 +150,7 @@ jobs:
           SERVER_PID=$!
           echo "Server PID: $SERVER_PID"
           sleep 5
-          curl --fail --retry 5 --retry-delay 2 http://localhost:3000/health \
+          curl --fail --retry 5 --retry-delay 2 http://localhost:3000/api/health \
             || (kill $SERVER_PID && exit 1)
           kill $SERVER_PID
 
