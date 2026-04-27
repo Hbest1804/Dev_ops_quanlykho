@@ -25,13 +25,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem('wareflow_user');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      setUser({ email: parsed.email });
-      setProfile(parsed);
+    const token = localStorage.getItem('wareflow_token');
+    if (!token) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+    api.get('/auth/me')
+      .then(({ data }) => {
+        const p: Profile = {
+          id: String(data.id),
+          email: data.email,
+          full_name: data.name,
+          role: data.role,
+        };
+        localStorage.setItem('wareflow_user', JSON.stringify(p));
+        setUser({ email: p.email });
+        setProfile(p);
+      })
+      .catch(() => {
+        localStorage.removeItem('wareflow_user');
+        localStorage.removeItem('wareflow_token');
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const login = async (email: string, password: string) => {

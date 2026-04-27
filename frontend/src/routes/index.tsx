@@ -14,10 +14,18 @@ import Users from '../pages/Users';
 import Account from '../pages/Account';
 import Transactions from '../pages/Transactions';
 
+type Role = 'admin' | 'warehouse_staff' | 'accountant';
+
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return null;
   return user ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
+function RoleRoute({ children, roles }: { children: ReactNode; roles: Role[] }) {
+  const { profile } = useAuth();
+  if (!profile || !roles.includes(profile.role)) return <Navigate to="/" replace />;
+  return <>{children}</>;
 }
 
 export default function AppRoutes() {
@@ -28,15 +36,31 @@ export default function AppRoutes() {
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
-        <Route path="products" element={<Products />} />
-        <Route path="stock-in" element={<StockIn />} />
-        <Route path="stock-in/:id" element={<StockInDetail />} />
-        <Route path="stock-out" element={<StockOut />} />
-        <Route path="stock-out/:id" element={<StockOutDetail />} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="users" element={<Users />} />
+        <Route path="products" element={
+          <RoleRoute roles={['admin', 'warehouse_staff']}><Products /></RoleRoute>
+        } />
+        <Route path="stock-in" element={
+          <RoleRoute roles={['admin', 'warehouse_staff']}><StockIn /></RoleRoute>
+        } />
+        <Route path="stock-in/:id" element={
+          <RoleRoute roles={['admin', 'warehouse_staff']}><StockInDetail /></RoleRoute>
+        } />
+        <Route path="stock-out" element={
+          <RoleRoute roles={['admin', 'warehouse_staff']}><StockOut /></RoleRoute>
+        } />
+        <Route path="stock-out/:id" element={
+          <RoleRoute roles={['admin', 'warehouse_staff']}><StockOutDetail /></RoleRoute>
+        } />
+        <Route path="reports" element={
+          <RoleRoute roles={['admin', 'accountant']}><Reports /></RoleRoute>
+        } />
+        <Route path="users" element={
+          <RoleRoute roles={['admin']}><Users /></RoleRoute>
+        } />
         <Route path="account" element={<Account />} />
-        <Route path="transactions/:productCode" element={<Transactions />} />
+        <Route path="transactions/:productCode" element={
+          <RoleRoute roles={['admin', 'warehouse_staff']}><Transactions /></RoleRoute>
+        } />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
