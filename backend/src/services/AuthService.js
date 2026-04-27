@@ -34,4 +34,8 @@ export const AuthService = {
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
     };
   },
+
+  async logout(rawRefreshToken) {
+    await RefreshTokenRepository.revoke(rawRefreshToken);
+  },
 };
