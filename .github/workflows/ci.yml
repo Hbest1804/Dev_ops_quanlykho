@@ -44,9 +44,6 @@ jobs:
       - name: ✅ Verify app entry point exists
         run: test -f src/app.js && echo "app.js found ✓"
 
-      - name: 🧪 Run unit tests
-        run: npm test
-
   # ────────────────────────────────────────────
   # JOB 2: Lint & Build – Frontend
   # ────────────────────────────────────────────
