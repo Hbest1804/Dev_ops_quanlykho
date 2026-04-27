@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
-import router from './routes/index.js';
-import { notFound, errorHandler } from './middlewares/errorHandler.js';
-import { pool } from './db/pool.js';
+import authRouter from './routes/Auth.js';
+import { notFound, errorHandler } from './middlewares/ErrorHandler.js';
+import { pool } from './db/Pool.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,7 +10,8 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/api', router);
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.use('/api/auth', authRouter);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -25,9 +26,7 @@ async function start() {
     process.exit(1);
   }
 
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 
 start();
