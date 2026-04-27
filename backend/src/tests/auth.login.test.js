@@ -58,7 +58,7 @@ describe('AuthService.login', () => {
     UserRepository.findByEmail.mockResolvedValue(null);
 
     await expect(AuthService.login('notexist@x.com', 'any'))
-      .rejects.toMatchObject({ status: 401, message: 'Invalid credentials' });
+      .rejects.toMatchObject({ status: 401, message: 'Email hoặc mật khẩu không đúng' });
   });
 
   it('UT-AUTH-LOGIN-003 | mật khẩu sai → 401', async () => {
@@ -66,14 +66,14 @@ describe('AuthService.login', () => {
     bcrypt.compare.mockResolvedValue(false);
 
     await expect(AuthService.login('huy@wareflow.com', 'wrongpass'))
-      .rejects.toMatchObject({ status: 401, message: 'Invalid credentials' });
+      .rejects.toMatchObject({ status: 401, message: 'Email hoặc mật khẩu không đúng' });
   });
 
   it('UT-AUTH-LOGIN-004 | tài khoản bị khóa → 403', async () => {
     UserRepository.findByEmail.mockResolvedValue({ ...mockUser, status: 'disabled' });
 
     await expect(AuthService.login('huy@wareflow.com', 'correct123'))
-      .rejects.toMatchObject({ status: 403, message: 'Account is disabled' });
+      .rejects.toMatchObject({ status: 403, message: 'Tài khoản đã bị vô hiệu hoá' });
   });
 });
 
@@ -88,7 +88,7 @@ describe('AuthController.login', () => {
     await AuthController.login(req, res, vi.fn());
 
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Email and password are required' });
+    expect(res.json).toHaveBeenCalledWith({ message: 'Email và mật khẩu là bắt buộc' });
   });
 
   it('UT-AUTH-LOGIN-006 | thiếu password → 400', async () => {
@@ -98,6 +98,6 @@ describe('AuthController.login', () => {
     await AuthController.login(req, res, vi.fn());
 
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Email and password are required' });
+    expect(res.json).toHaveBeenCalledWith({ message: 'Email và mật khẩu là bắt buộc' });
   });
 });

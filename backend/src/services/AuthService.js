@@ -17,13 +17,13 @@ function signAccess(user) {
 export const AuthService = {
   async login(email, password, meta = {}) {
     const user = await UserRepository.findByEmail(email);
-    if (!user) throw Unauthorized('Invalid credentials');
+    if (!user) throw Unauthorized('Email hoặc mật khẩu không đúng');
 
     if (user.status === 'disabled')
-      throw Forbidden('Account is disabled');
+      throw Forbidden('Tài khoản đã bị vô hiệu hoá');
 
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) throw Unauthorized('Invalid credentials');
+    if (!valid) throw Unauthorized('Email hoặc mật khẩu không đúng');
 
     const accessToken  = signAccess(user);
     const refreshToken = await RefreshTokenRepository.create(user.id, meta);

@@ -5,7 +5,7 @@ export const AuthController = {
     try {
       const { email, password } = req.body;
       if (!email || !password)
-        return res.status(400).json({ message: 'Email and password are required' });
+        return res.status(400).json({ message: 'Email và mật khẩu là bắt buộc' });
 
       const result = await AuthService.login(email, password, {
         userAgent: req.headers['user-agent'],
