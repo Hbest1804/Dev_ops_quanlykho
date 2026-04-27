@@ -9,24 +9,19 @@ import CustomSelect from '../component/CustomSelect';
 import { useConfirm } from '../component/useConfirm';
 
 type Product = {
-  id: string;
-  sku: string;
+  id: number;
+  code: string;
   name: string;
   description: string;
   category: string;
   unit: string;
-  stock_quantity: number;
+  stock: number;
   created_at: string;
   updated_at: string;
 };
 
-// Mock data items
-const INITIAL_PRODUCTS: Product[] = [
-  { id: '1', sku: 'PR-1001', name: 'Kệ Pallet Công nghiệp', description: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.", category: 'Thiết bị công nghiệp', unit: 'Cái', stock_quantity: 1432, created_at: '2024-01-10T08:00:00Z', updated_at: '2024-03-15T14:30:00Z' },
-  { id: '2', sku: 'FB-4800', name: 'Bình điện Xe nâng 48V', description: '', category: 'Thiết bị điện', unit: 'Cái', stock_quantity: 890, created_at: '2024-02-01T09:00:00Z', updated_at: '2024-04-01T10:00:00Z' },
-  { id: '3', sku: 'SW-500', name: 'Cuộn màng PE', description: '', category: 'Đóng gói', unit: 'Cuộn', stock_quantity: 15, created_at: '2024-02-20T11:00:00Z', updated_at: '2024-04-10T16:00:00Z' },
-  { id: '4', sku: 'CB-200', name: 'Băng tải con lăn', description: '', category: 'Thiết bị công nghiệp', unit: 'Bộ', stock_quantity: 0, created_at: '2024-03-05T07:30:00Z', updated_at: '2024-04-20T09:15:00Z' }
-];
+const API_URL = 'http://localhost:3000/api/products';
+
 
 export default function Products() {
   const navigate = useNavigate();
@@ -49,54 +44,78 @@ export default function Products() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   
   const [formData, setFormData] = useState({
-    sku: '', name: '', description: '', category: '', unit: 'Cái', stock_quantity: 0
+    code: '', name: '', description: '', category: '', unit: 'Cái', stock: 0
   });
 
-  useEffect(() => {
-    // Generate delay for mock data
-    setTimeout(() => {
-      setProducts(INITIAL_PRODUCTS);
+  const fetchProducts = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      setProducts(data);
+    } catch (error) {
+      toast.error('Không thể tải danh sách sản phẩm');
+    } finally {
       setLoading(false);
-    }, 500);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
   }, []);
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!formData.sku.trim()) { toast.error('Vui lòng nhập mã SKU'); return; }
+    if (!formData.code.trim()) { toast.error('Vui lòng nhập mã SP'); return; }
     if (!formData.name.trim()) { toast.error('Vui lòng nhập tên sản phẩm'); return; }
-    if (editingId) {
-      setProducts(products.map(p => p.id === editingId ? { ...p, ...formData, updated_at: new Date().toISOString() } : p));
-      toast.success('Đã cập nhật sản phẩm');
-    } else {
-      const now = new Date().toISOString();
-      const newProduct: Product = {
-        ...formData,
-        id: Math.random().toString(36).substring(2, 9),
-        created_at: now,
-        updated_at: now,
-      };
-      setProducts([newProduct, ...products]);
-      toast.success('Đã thêm sản phẩm mới');
+    
+    try {
+      const method = editingId ? 'PUT' : 'POST';
+      const url = editingId ? `${API_URL}/${editingId}` : API_URL;
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Lỗi khi lưu sản phẩm');
+      }
+
+      toast.success(editingId ? 'Đã cập nhật sản phẩm' : 'Đã thêm sản phẩm mới');
+      fetchProducts();
+      closeModal();
+    } catch (error: any) {
+      toast.error(error.message);
     }
-    closeModal();
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (!await confirm({ title: 'Xoá sản phẩm', message: 'Bạn có chắc muốn xoá sản phẩm này? Hành động không thể hoàn tác.', confirmLabel: 'Xoá', variant: 'danger' })) return;
-    setProducts(prev => prev.filter(p => p.id !== id));
-    if (selectedProduct?.id === id) setSelectedProduct(null);
-    toast.success('Đã xoá sản phẩm');
+    
+    try {
+      const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Lỗi khi xoá sản phẩm');
+      
+      toast.success('Đã xoá sản phẩm');
+      fetchProducts();
+      if (selectedProduct?.id === id) setSelectedProduct(null);
+    } catch (error: any) {
+      toast.error(error.message);
+    }
   };
 
   const openAddModal = () => {
-    setFormData({ sku: '', name: '', description: '', category: 'Thiết bị công nghiệp', unit: 'Cái', stock_quantity: 0 });
+    setFormData({ code: '', name: '', description: '', category: 'Thiết bị công nghiệp', unit: 'Cái', stock: 0 });
     setEditingId(null);
     setIsModalOpen(true);
   };
 
   const openEditModal = (p: Product) => {
-    setFormData({ sku: p.sku, name: p.name, description: p.description, category: p.category, unit: p.unit, stock_quantity: p.stock_quantity });
-    setEditingId(p.id);
+    setFormData({ code: p.code, name: p.name, description: p.description, category: p.category, unit: p.unit, stock: p.stock });
+    setEditingId(p.id.toString());
     setIsModalOpen(true);
   };
 
@@ -107,9 +126,9 @@ export default function Products() {
   };
 
   const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.code.toLowerCase().includes(search.toLowerCase());
     const matchesCat = category === 'Tất cả danh mục' || p.category === category;
-    const s = getStatus(p.stock_quantity).label;
+    const s = getStatus(p.stock).label;
     const matchesStatus = status === 'Tất cả trạng thái' || s === status;
     return matchesSearch && matchesCat && matchesStatus;
   });
@@ -198,22 +217,22 @@ export default function Products() {
                 const status = getStatus(p.stock_quantity);
                 return (
                 <tr key={p.id} onClick={() => setSelectedProduct(p)} className="hover:bg-slate-50 transition-colors group cursor-pointer">
-                  <td className="py-3 px-4 font-medium text-slate-600">{p.sku}</td>
+                  <td className="py-3 px-4 font-medium text-slate-600">{p.code}</td>
                   <td className="py-3 px-4 font-medium text-slate-900">{p.name}</td>
                   <td className="py-3 px-4 text-slate-500 max-w-[200px]">
                     <span className="block truncate" title={p.description}>{p.description || '—'}</span>
                   </td>
                   <td className="py-3 px-4 text-slate-600">{p.category}</td>
                   <td className="py-3 px-4 text-slate-500">{p.unit}</td>
-                  <td className="py-3 px-4 font-medium text-right text-slate-900">{p.stock_quantity.toLocaleString()}</td>
+                  <td className="py-3 px-4 font-medium text-right text-slate-900">{p.stock.toLocaleString()}</td>
                   <td className="py-3 px-4 text-center">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${status.classes}`}>
-                      {status.label}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatus(p.stock).classes}`}>
+                      {getStatus(p.stock).label}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => navigate(`/transactions/${p.sku}`)} className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer" title="Lịch sử"><History size={18} /></button>
+                      <button onClick={() => navigate(`/transactions/${p.code}`)} className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer" title="Lịch sử"><History size={18} /></button>
                       <button onClick={() => openEditModal(p)} className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer" title="Chỉnh sửa"><Edit2 size={18} /></button>
                       <button onClick={() => handleDelete(p.id)} className="text-slate-400 hover:text-red-600 p-1 cursor-pointer" title="Xoá"><Trash2 size={18} /></button>
                     </div>
@@ -244,14 +263,14 @@ export default function Products() {
                   <p className="text-xs text-slate-500 mb-1">Tên sản phẩm</p>
                   <p className="font-semibold text-slate-900 text-base">{selectedProduct.name}</p>
                 </div>
-                <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatus(selectedProduct.stock_quantity).classes}`}>
-                  {getStatus(selectedProduct.stock_quantity).label}
+                <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatus(selectedProduct.stock).classes}`}>
+                  {getStatus(selectedProduct.stock).label}
                 </span>
               </div>
 
               <div>
                 <p className="text-xs text-slate-500 mb-1">Mã SP (SKU)</p>
-                <p className="text-sm font-medium text-slate-700">{selectedProduct.sku}</p>
+                <p className="text-sm font-medium text-slate-700">{selectedProduct.code}</p>
               </div>
 
               <div>
@@ -272,7 +291,7 @@ export default function Products() {
 
               <div>
                 <p className="text-xs text-slate-500 mb-1">Tồn kho</p>
-                <p className="text-2xl font-bold text-slate-900">{selectedProduct.stock_quantity.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-slate-900">{selectedProduct.stock.toLocaleString()}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
@@ -288,7 +307,7 @@ export default function Products() {
             </div>
             <div className="p-4 border-t border-slate-100 flex flex-col gap-3">
               <button
-                onClick={() => navigate(`/transactions/${selectedProduct.sku}`)}
+                onClick={() => navigate(`/transactions/${selectedProduct.code}`)}
                 className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-[#0058be] bg-[#e5eeff] hover:bg-[#d0e4ff] rounded-lg transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-2"><History size={16} /> Xem lịch sử giao dịch</span>
@@ -335,7 +354,7 @@ export default function Products() {
             <form onSubmit={handleSave} noValidate className="p-6 flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-slate-700">Mã SP (SKU) *</label>
-                <input required type="text" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-[#0058be] focus:ring-1 focus:ring-[#0058be] outline-none text-sm" placeholder="VD: PRD-1001" />
+                <input required type="text" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-[#0058be] focus:ring-1 focus:ring-[#0058be] outline-none text-sm" placeholder="VD: PRD-1001" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-slate-700">Tên sản phẩm *</label>
@@ -370,7 +389,7 @@ export default function Products() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-slate-700">Số lượng</label>
-                <input type="number" min="0" value={formData.stock_quantity} className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 outline-none text-sm text-slate-500 cursor-not-allowed" disabled />
+                <input type="number" min="0" value={formData.stock} className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 outline-none text-sm text-slate-500 cursor-not-allowed" disabled />
                 <span className="text-xs text-amber-600">Số lượng kho được quản lý thông qua giao dịch nhập/xuất kho.</span>
               </div>
               <div className="pt-2 flex items-center justify-end gap-3 mt-2">
