@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { Package, User, Lock, LogIn, UserPlus } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
@@ -12,12 +13,13 @@ export default function Login() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    // Mock login delay
-    setTimeout(() => {
-      login(email);
+    try {
+      await login(email, password);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Đăng nhập thất bại');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (

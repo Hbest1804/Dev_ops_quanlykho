@@ -1,5 +1,6 @@
 import { ReactNode, createContext, useContext, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import api from '../lib/api';
 
 type Profile = {
   id: string;
@@ -12,7 +13,7 @@ type AuthContextType = {
   user: any;
   profile: Profile | null;
   loading: boolean;
-  login: (email: string) => void;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 };
 
@@ -33,16 +34,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   }, []);
 
-  const login = (email: string) => {
-    const mockProfile: Profile = {
-      id: '1',
-      email,
-      full_name: email.split('@')[0],
-      role: 'admin',
+  const login = async (email: string, password: string) => {
+    const { data } = await api.post('/auth/login', { email, password });
+
+    const p: Profile = {
+      id: String(data.user.id),
+      email: data.user.email,
+      full_name: data.user.name,
+      role: data.user.role,
     };
-    setUser({ email });
-    setProfile(mockProfile);
-    localStorage.setItem('wareflow_user', JSON.stringify(mockProfile));
+
+    localStorage.setItem('wareflow_user', JSON.stringify(p));
+    localStorage.setItem('wareflow_token', data.accessToken);
+
+    setUser({ email: p.email });
+    setProfile(p);
     toast.success('Đăng nhập thành công!');
   };
 
@@ -50,6 +56,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setProfile(null);
     localStorage.removeItem('wareflow_user');
+    localStorage.removeItem('wareflow_token');
     toast.success('Đã đăng xuất');
   };
 

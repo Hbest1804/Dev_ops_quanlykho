@@ -45,6 +45,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: development
+      BACKEND_URL: http://backend:3000
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     volumes:
