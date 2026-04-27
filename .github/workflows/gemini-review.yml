@@ -21,7 +21,6 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          # Build JSON body safely via Python to avoid "Argument list too long"
           python3 - <<'EOF'
           import json, pathlib
 
@@ -35,12 +34,10 @@ jobs:
           pathlib.Path("body.json").write_text(json.dumps(body), encoding="utf-8")
           EOF
 
-          RESPONSE=$(curl -s -X POST \
+          curl -s -X POST \
             "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=$GEMINI_API_KEY" \
             -H "Content-Type: application/json" \
-            -d @body.json)
-
-          echo "$RESPONSE" > result.txt
+            -d @body.json > result.txt
 
       - name: Comment PR
         uses: actions/github-script@v7
