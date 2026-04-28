@@ -1,6 +1,33 @@
 import { pool } from '../db/Pool.js';
 
 export const ExportOrderRepository = {
+  async findById(id, client = pool) {
+    const { rows } = await client.query(
+      'SELECT * FROM export_orders WHERE id = $1 FOR UPDATE',
+      [id]
+    );
+    return rows[0] ?? null;
+  },
+
+  async findItemsByOrderId(orderId, client = pool) {
+    const { rows } = await client.query(
+      'SELECT * FROM export_order_items WHERE export_order_id = $1',
+      [orderId]
+    );
+    return rows;
+  },
+
+  async updateStatus(id, status, confirmedBy, client = pool) {
+    const { rows } = await client.query(
+      `UPDATE export_orders
+       SET status = $1, confirmed_by = $2, confirmed_at = NOW()
+       WHERE id = $3
+       RETURNING *`,
+      [status, confirmedBy, id]
+    );
+    return rows[0] ?? null;
+  },
+
   async createWithItems({ reason, exportDate, note, userId }, items) {
     const client = await pool.connect();
     try {
