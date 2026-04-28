@@ -43,5 +43,29 @@ export const ReportController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  async exportInventory(req, res, next) {
+    try {
+      const { fromDate, toDate, category, format } = req.query;
+
+      if (format === 'excel') {
+        const buffer = await ReportService.exportInventoryExcel({ fromDate, toDate, category });
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=BaoCaoInventory_${fromDate}.xlsx`);
+        return res.send(buffer);
+      }
+
+      if (format === 'pdf') {
+        const buffer = await ReportService.exportInventoryPDF({ fromDate, toDate, category });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=BaoCaoInventory_${fromDate}.pdf`);
+        return res.send(buffer);
+      }
+
+      throw new Error('Định dạng không hỗ trợ. Chỉ hỗ trợ excel hoặc pdf.');
+    } catch (error) {
+      next(error);
+    }
   }
 };
