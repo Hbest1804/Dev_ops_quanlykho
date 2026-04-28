@@ -33,4 +33,31 @@ export const ReportService = {
       totals,
     };
   },
+
+  async getTopProducts({ fromDate, toDate, type }) {
+    if (!fromDate || !toDate) {
+      throw BadRequest('Vui lòng cung cấp đầy đủ fromDate và toDate');
+    }
+
+    if (!type || !['import', 'export'].includes(type)) {
+      throw BadRequest('Loại giao dịch (type) phải là "import" hoặc "export"');
+    }
+
+    const start = new Date(fromDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(toDate);
+    end.setHours(23, 59, 59, 999);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw BadRequest('Định dạng ngày tháng không hợp lệ');
+    }
+
+    if (start > end) {
+      throw BadRequest('Ngày bắt đầu không được lớn hơn ngày kết thúc');
+    }
+
+    const rows = await ReportRepository.getTopProducts(start, end, type);
+    return rows;
+  }
 };
