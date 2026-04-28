@@ -5,6 +5,7 @@ import { authorize } from '../middlewares/Authorization.js';
 
 const router = Router();
 
-router.get('/summary', authenticate, authorize('admin', 'accountant'), ReportController.getSummary);
+router.get('/summary',      authenticate, authorize('admin', 'accountant'), ReportController.getSummary);
+router.get('/top-products', authenticate, authorize('admin', 'accountant'), ReportController.getTopProducts);
 
 export default router;

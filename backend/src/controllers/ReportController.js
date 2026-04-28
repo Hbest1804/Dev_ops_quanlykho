@@ -10,4 +10,22 @@ export const ReportController = {
       res.status(200).json({ success: true, data: result });
     } catch (err) { next(err); }
   },
+
+  async getTopProducts(req, res, next) {
+    try {
+      const { fromDate, toDate, type } = req.query;
+
+      const data = await ReportService.getTopProducts({ fromDate, toDate, type });
+
+      res.status(200).json({
+        success: true,
+        message: data.length > 0
+          ? 'Lấy danh sách top sản phẩm thành công'
+          : 'Không có dữ liệu trong khoảng thời gian này',
+        data: data
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 };
