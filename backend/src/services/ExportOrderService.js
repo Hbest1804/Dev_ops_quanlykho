@@ -1,5 +1,7 @@
+import { pool } from '../db/Pool.js';
 import { ExportOrderRepository } from '../repositories/ExportOrderRepository.js';
 import { ProductRepository } from '../repositories/ProductRepository.js';
+import { StockTransactionRepository } from '../repositories/StockTransactionRepository.js';
 import { BadRequest, NotFound, UnprocessableEntity } from '../utils/AppError.js';
 
 const VALID_REASONS = new Set(['sale', 'internal', 'damaged']);
@@ -37,5 +39,53 @@ export const ExportOrderService = {
     }
 
     return ExportOrderRepository.createWithItems({ reason, exportDate, note, userId }, repoItems);
+  },
+
+  async confirmExportOrder(id, userId) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const order = await ExportOrderRepository.findById(id, client);
+      if (!order) throw NotFound('Không tìm thấy phiếu xuất');
+      if (order.status !== 'pending')
+        throw BadRequest('Chỉ có thể xác nhận phiếu xuất ở trạng thái chờ xác nhận');
+
+      const items = await ExportOrderRepository.findItemsByOrderId(id, client);
+      if (!items || items.length === 0)
+        throw BadRequest('Phiếu xuất không có sản phẩm nào');
+
+      for (const item of items) {
+        const product = await ProductRepository.findByIdForUpdate(item.product_id, client);
+        if (!product)
+          throw BadRequest(`Sản phẩm (ID: ${item.product_id}) không tồn tại`);
+        if (product.stock < item.quantity)
+          throw BadRequest(`Sản phẩm "${product.name}" không đủ tồn kho (Hiện tại: ${product.stock}, Yêu cầu: ${item.quantity})`);
+
+        const updatedProduct = await ProductRepository.updateStock(product.id, -item.quantity, client);
+
+        await StockTransactionRepository.create({
+          productId:           product.id,
+          type:                'export',
+          quantity:            -item.quantity,
+          stockAfter:          updatedProduct.stock,
+          refType:             'export_order',
+          refId:               order.id,
+          snapshotProductCode: item.snapshot_product_code,
+          snapshotProductName: item.snapshot_product_name,
+          snapshotUnit:        item.snapshot_unit,
+          createdBy:           userId,
+        }, client);
+      }
+
+      const confirmedOrder = await ExportOrderRepository.updateStatus(id, 'confirmed', userId, client);
+      await client.query('COMMIT');
+      return confirmedOrder;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   },
 };
