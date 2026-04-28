@@ -25,4 +25,30 @@ export const UserService = {
     const { password: _pw, ...safe } = user;
     return safe;
   },
+
+  async update(id, { name, email, password, role, status }) {
+    const user = await UserRepository.findById(id);
+    if (!user) throw BadRequest('User not found');
+
+    if (email) {
+      const existing = await UserRepository.findByEmail(email);
+      if (existing && existing.id !== Number(id)) {
+        throw Conflict('Email already in use');
+      }
+    }
+
+    if (role && !VALID_ROLES.includes(role)) {
+      throw BadRequest('Role must be admin|warehouse_staff|accountant');
+    }
+
+    const updateData = { name, email, role, status };
+    if (password) {
+      if (password.length < 8) throw BadRequest('Password must be at least 8 characters');
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    const updated = await UserRepository.update(id, updateData);
+    const { password: _pw, ...safe } = updated;
+    return safe;
+  },
 };

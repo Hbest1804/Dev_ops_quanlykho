@@ -22,4 +22,16 @@ export const UserController = {
       next(err);
     }
   },
+
+  async update(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { name, email, password, role, status } = req.body;
+
+      const user = await UserService.update(id, { name, email, password, role, status });
+      res.json({ success: true, data: user });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
