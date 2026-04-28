@@ -13,4 +13,12 @@ router.post(
   ExportOrderController.create
 );
 
+// PUT /api/export-orders/:id/confirm — Duyệt phiếu xuất (admin & warehouse_staff)
+router.put(
+  '/:id/confirm',
+  authenticate,
+  authorize('admin', 'warehouse_staff'),
+  ExportOrderController.confirm
+);
+
 export default router;
