@@ -3,9 +3,9 @@ import { pool } from '../db/Pool.js';
 export const StockTransactionRepository = {
   async create({ productId, type, quantity, stockAfter, refType, refId, snapshotProductCode, snapshotProductName, snapshotUnit, createdBy }, client = pool) {
     const { rows } = await client.query(
-      `INSERT INTO stock_transactions 
+      `INSERT INTO stock_transactions
         (product_id, type, quantity, stock_after, ref_type, ref_id, snapshot_product_code, snapshot_product_name, snapshot_unit, created_by)
-       VALUES 
+       VALUES
         ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
@@ -18,7 +18,7 @@ export const StockTransactionRepository = {
 
   async createMany(transactions, client = pool) {
     if (!transactions.length) return [];
-    
+
     const values = [];
     const placeholders = transactions.map((t, i) => {
       const offset = i * 10;
@@ -30,7 +30,7 @@ export const StockTransactionRepository = {
     }).join(', ');
 
     const query = `
-      INSERT INTO stock_transactions 
+      INSERT INTO stock_transactions
         (product_id, type, quantity, stock_after, ref_type, ref_id, snapshot_product_code, snapshot_product_name, snapshot_unit, created_by)
       VALUES ${placeholders}
       RETURNING *
@@ -38,5 +38,5 @@ export const StockTransactionRepository = {
 
     const { rows } = await client.query(query, values);
     return rows;
-  }
+  },
 };
