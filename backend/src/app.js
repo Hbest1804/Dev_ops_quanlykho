@@ -7,6 +7,7 @@ import usersRouter from './routes/Users.js';
 import productsRouter from './routes/Products.js';
 import importOrdersRouter from './routes/ImportOrders.js';
 import exportOrdersRouter from './routes/ExportOrders.js';
+import reportsRouter from './routes/Reports.js';
 import { notFound, errorHandler } from './middlewares/ErrorHandler.js';
 import { pool } from './db/Pool.js';
 import { seedAdminUser } from './db/Seed.js';
@@ -33,6 +34,7 @@ app.use('/api/users',         usersRouter);
 app.use('/api/products',      productsRouter);
 app.use('/api/import-orders', importOrdersRouter);
 app.use('/api/export-orders', exportOrdersRouter);
+app.use('/api/reports', reportsRouter);
 
 app.use(notFound);
 app.use(errorHandler);
