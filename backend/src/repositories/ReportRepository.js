@@ -124,4 +124,25 @@ export const ReportRepository = {
       totalClosing: Number(rows[0].total_closing),
     };
   },
+
+  async getTopProducts(fromDate, toDate, type, limit = 10) {
+    const query = `
+      SELECT 
+        p.id, 
+        p.code, 
+        p.name, 
+        p.category, 
+        p.unit,
+        SUM(ABS(st.quantity))::int AS total_quantity
+      FROM stock_transactions st
+      JOIN products p ON st.product_id = p.id
+      WHERE st.created_at >= $1 AND st.created_at <= $2
+        AND st.type = $3
+      GROUP BY p.id, p.code, p.name, p.category, p.unit
+      ORDER BY total_quantity DESC
+      LIMIT $4
+    `;
+    const { rows } = await pool.query(query, [fromDate, toDate, type, limit]);
+    return rows;
+  }
 };
