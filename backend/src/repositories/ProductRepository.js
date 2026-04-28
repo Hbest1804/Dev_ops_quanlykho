@@ -1,14 +1,5 @@
 import { pool } from '../db/Pool.js';
 
-/**
- * Xây dựng mệnh đề WHERE và mảng giá trị dùng chung cho count() và findAll().
- * Hỗ trợ lọc theo: search, category, status (stock-based).
- *
- * Ánh xạ status → điều kiện SQL tồn kho:
- *   'Còn Hàng'  → stock > 20
- *   'Sắp Hết'   → stock > 0 AND stock <= 20
- *   'Hết Hàng'  → stock = 0
- */
 function buildWhereClause({ search, category, status }) {
   const conditions = ['is_deleted = FALSE'];
   const values = [];
@@ -39,9 +30,6 @@ function buildWhereClause({ search, category, status }) {
 }
 
 export const ProductRepository = {
-  /**
-   * Trả về tổng số sản phẩm phù hợp với điều kiện lọc (dùng cho phân trang).
-   */
   async count({ search, category, status }) {
     const { where, values } = buildWhereClause({ search, category, status });
     const { rows } = await pool.query(
@@ -51,9 +39,6 @@ export const ProductRepository = {
     return rows[0].total;
   },
 
-  /**
-   * Lấy danh sách sản phẩm có lọc / phân trang.
-   */
   async findAll({ search, category, status, page = 1, limit = 20 }) {
     const { where, values, nextIndex: i } = buildWhereClause({ search, category, status });
     const offset = (page - 1) * limit;
@@ -70,9 +55,6 @@ export const ProductRepository = {
     return rows;
   },
 
-  /**
-   * Lấy một sản phẩm theo ID.
-   */
   async findById(id) {
     const { rows } = await pool.query(
       `SELECT id, code, name, category, unit, description, stock, is_deleted, created_at, updated_at
@@ -82,9 +64,14 @@ export const ProductRepository = {
     return rows[0] ?? null;
   },
 
-  /**
-   * Lấy một sản phẩm theo mã (dùng kiểm tra trùng code).
-   */
+  async findByIdForUpdate(id, client = pool) {
+    const { rows } = await client.query(
+      'SELECT * FROM products WHERE id = $1 FOR UPDATE',
+      [id]
+    );
+    return rows[0] ?? null;
+  },
+
   async findByIds(ids) {
     if (!ids.length) return [];
     const { rows } = await pool.query(
@@ -111,9 +98,6 @@ export const ProductRepository = {
     return rows[0] ?? null;
   },
 
-  /**
-   * Tạo sản phẩm mới.
-   */
   async create({ code, name, category, unit, description, initialStock }) {
     const { rows } = await pool.query(
       `INSERT INTO products (code, name, category, unit, description, stock)
@@ -124,10 +108,6 @@ export const ProductRepository = {
     return rows[0];
   },
 
-  /**
-   * Cập nhật thông tin sản phẩm theo ID.
-   * Chỉ cho phép sửa: name, category, unit, description.
-   */
   async update(id, { name, category, unit, description }) {
     const { rows } = await pool.query(
       `UPDATE products
@@ -139,6 +119,17 @@ export const ProductRepository = {
         WHERE id = $5
         RETURNING id, code, name, category, unit, description, stock, created_at, updated_at`,
       [name, category, unit, description ?? '', id]
+    );
+    return rows[0] ?? null;
+  },
+
+  async updateStock(id, quantityChange, client = pool) {
+    const { rows } = await client.query(
+      `UPDATE products
+       SET stock = stock + $1
+       WHERE id = $2
+       RETURNING *`,
+      [quantityChange, id]
     );
     return rows[0] ?? null;
   },
