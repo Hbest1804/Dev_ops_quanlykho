@@ -117,23 +117,34 @@ export default function Users() {
     }
   };
 
-  const handleSaveEdit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedUser) return;
     if (!editForm.name.trim()) { toast.error('Vui lòng nhập họ và tên'); return; }
     if (!editForm.email.trim()) { toast.error('Vui lòng nhập email'); return; }
-    const now = new Date().toISOString();
-    const updated: User = {
-      ...selectedUser,
-      name: editForm.name.trim(),
-      email: editForm.email.trim(),
-      role: ROLE_VALUES[editForm.role],
-      status: editForm.status === 'Hoạt động' ? 'active' : 'disabled',
-      updated_at: now,
-    };
-    setUsers(prev => prev.map(u => u.id === selectedUser.id ? updated : u));
-    setSelectedUser(updated);
-    toast.success('Đã cập nhật người dùng');
+
+    try {
+      const payload: any = {
+        name: editForm.name.trim(),
+        email: editForm.email.trim(),
+        role: ROLE_VALUES[editForm.role],
+        status: editForm.status === 'Hoạt động' ? 'active' : 'disabled',
+      };
+      
+      if (editForm.password.trim()) {
+        if (editForm.password.length < 8) { toast.error('Mật khẩu tối thiểu 8 ký tự'); return; }
+        payload.password = editForm.password;
+      }
+
+      const { data } = await api.patch(`/users/${selectedUser.id}`, payload);
+      const updated = data.data;
+      
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? updated : u));
+      setSelectedUser(updated);
+      toast.success('Đã cập nhật người dùng');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Cập nhật thất bại');
+    }
   };
 
   const filtered = users.filter(u =>
