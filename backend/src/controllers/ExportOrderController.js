@@ -10,4 +10,12 @@ export const ExportOrderController = {
       res.status(201).json({ success: true, data: order });
     } catch (err) { next(err); }
   },
+
+  async confirm(req, res, next) {
+    try {
+      const { id } = req.params;
+      const order = await ExportOrderService.confirmExportOrder(id, req.user.sub);
+      res.status(200).json({ success: true, message: 'Xác nhận phiếu xuất thành công', data: order });
+    } catch (err) { next(err); }
+  },
 };
