@@ -1,26 +1,49 @@
 import { pool } from '../db/Pool.js';
 
+/**
+ * Xây dựng mệnh đề WHERE và mảng giá trị dùng chung cho count() và findAll().
+ * Hỗ trợ lọc theo: search, category, status (stock-based).
+ *
+ * Ánh xạ status → điều kiện SQL tồn kho:
+ *   'Còn Hàng'  → stock > 20
+ *   'Sắp Hết'   → stock > 0 AND stock <= 20
+ *   'Hết Hàng'  → stock = 0
+ */
+function buildWhereClause({ search, category, status }) {
+  const conditions = [];
+  const values = [];
+  let i = 1;
+
+  if (search) {
+    conditions.push(`(code ILIKE $${i} OR name ILIKE $${i})`);
+    values.push(`%${search}%`);
+    i++;
+  }
+  if (category) {
+    conditions.push(`category = $${i}`);
+    values.push(category);
+    i++;
+  }
+  if (status) {
+    if (status === 'Còn Hàng') {
+      conditions.push(`stock > 20`);
+    } else if (status === 'Sắp Hết') {
+      conditions.push(`stock > 0 AND stock <= 20`);
+    } else if (status === 'Hết Hàng') {
+      conditions.push(`stock = 0`);
+    }
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  return { where, values, nextIndex: i };
+}
+
 export const ProductRepository = {
   /**
    * Trả về tổng số sản phẩm phù hợp với điều kiện lọc (dùng cho phân trang).
    */
-  async count({ search, category }) {
-    const conditions = [];
-    const values = [];
-    let i = 1;
-
-    if (search) {
-      conditions.push(`(code ILIKE $${i} OR name ILIKE $${i})`);
-      values.push(`%${search}%`);
-      i++;
-    }
-    if (category) {
-      conditions.push(`category = $${i}`);
-      values.push(category);
-      i++;
-    }
-
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  async count({ search, category, status }) {
+    const { where, values } = buildWhereClause({ search, category, status });
     const { rows } = await pool.query(
       `SELECT COUNT(*)::int AS total FROM products ${where}`,
       values
@@ -31,23 +54,8 @@ export const ProductRepository = {
   /**
    * Lấy danh sách sản phẩm có lọc / phân trang.
    */
-  async findAll({ search, category, page = 1, limit = 20 }) {
-    const conditions = [];
-    const values = [];
-    let i = 1;
-
-    if (search) {
-      conditions.push(`(code ILIKE $${i} OR name ILIKE $${i})`);
-      values.push(`%${search}%`);
-      i++;
-    }
-    if (category) {
-      conditions.push(`category = $${i}`);
-      values.push(category);
-      i++;
-    }
-
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  async findAll({ search, category, status, page = 1, limit = 20 }) {
+    const { where, values, nextIndex: i } = buildWhereClause({ search, category, status });
     const offset = (page - 1) * limit;
 
     values.push(limit, offset);
@@ -97,7 +105,36 @@ export const ProductRepository = {
     );
     return rows[0];
   },
+
+  /**
+   * Cập nhật thông tin sản phẩm theo ID.
+   * Chỉ cho phép sửa: name, category, unit, description.
+   */
+  async update(id, { name, category, unit, description }) {
+    const { rows } = await pool.query(
+      `UPDATE products
+          SET name        = $1,
+              category    = $2,
+              unit        = $3,
+              description = $4,
+              updated_at  = NOW()
+        WHERE id = $5
+        RETURNING id, code, name, category, unit, description, stock, created_at, updated_at`,
+      [name, category, unit, description ?? '', id]
+    );
+    return rows[0] ?? null;
+  },
+
+  /**
+   * Xoá sản phẩm theo ID.
+   * Trả về bản ghi đã xoá, hoặc null nếu không tìm thấy.
+   */
+  async delete(id) {
+    const { rows } = await pool.query(
+      `DELETE FROM products WHERE id = $1
+         RETURNING id, code, name`,
+      [id]
+    );
+    return rows[0] ?? null;
+  },
 };
-
-
-

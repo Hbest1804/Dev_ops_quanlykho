@@ -52,6 +52,8 @@ export default function Products() {
       const params: Record<string, string> = {};
       if (search) params.search = search;
       if (categoryFilter !== 'Tất cả danh mục') params.category = categoryFilter;
+      // Chuyển lọc trạng thái lên server để đảm bảo phân trang chính xác
+      if (statusFilter !== 'Tất cả trạng thái') params.status = statusFilter;
 
       const { data } = await api.get('/products', { params });
       setProducts(data.data?.items ?? []);
@@ -66,7 +68,7 @@ export default function Products() {
     } finally {
       setLoading(false);
     }
-  }, [search, categoryFilter]);
+  }, [search, categoryFilter, statusFilter]);
 
   useEffect(() => {
     fetchProducts();
@@ -84,11 +86,9 @@ export default function Products() {
     return { label: 'Hết Hàng', classes: 'bg-red-100 text-red-800' };
   };
 
-  // ── Lọc trạng thái phía client (không cần round-trip API) ────
-  const filteredProducts = products.filter(p => {
-    const s = getStatus(p.stock).label;
-    return statusFilter === 'Tất cả trạng thái' || s === statusFilter;
-  });
+  // Lọc trạng thái đã được thực hiện phía server thông qua query param `status`.
+  // Biến `filteredProducts` chỉ là alias để không phải sửa phần JSX bên dưới.
+  const filteredProducts = products;
 
   // ── Mở modal thêm mới ────────────────────────────────────────
   const openAddModal = () => {
@@ -114,15 +114,15 @@ export default function Products() {
     setSaving(true);
     try {
       if (editingId) {
-        // TODO: PUT /api/products/:id (chưa có backend) — cập nhật local tạm
-        setProducts(prev =>
-          prev.map(p =>
-            p.id === editingId
-              ? { ...p, ...formData, updated_at: new Date().toISOString() }
-              : p
-          )
-        );
+        // PUT /api/products/:id — lưu thay đổi vào DB
+        await api.put(`/products/${editingId}`, {
+          name: formData.name.trim(),
+          category: formData.category,
+          unit: formData.unit,
+          description: formData.description.trim(),
+        });
         toast.success('Đã cập nhật sản phẩm');
+        await fetchProducts(); // reload từ DB để đồng bộ updated_at
       } else {
         await api.post('/products', {
           code: formData.code.trim(),
@@ -148,7 +148,7 @@ export default function Products() {
     }
   };
 
-  // ── Xoá (local state — chưa có DELETE endpoint) ──────────────
+  // ── Xoá (DELETE /api/products/:id) ──────────────────────────
   const handleDelete = async (id: number) => {
     if (!await confirm({
       title: 'Xoá sản phẩm',
@@ -156,9 +156,14 @@ export default function Products() {
       confirmLabel: 'Xoá',
       variant: 'danger',
     })) return;
-    setProducts(prev => prev.filter(p => p.id !== id));
-    if (selectedProduct?.id === id) setSelectedProduct(null);
-    toast.success('Đã xoá sản phẩm');
+    try {
+      await api.delete(`/products/${id}`);
+      if (selectedProduct?.id === id) setSelectedProduct(null);
+      toast.success('Đã xoá sản phẩm');
+      await fetchProducts(); // reload từ DB
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Không thể xoá sản phẩm');
+    }
   };
 
   return (
