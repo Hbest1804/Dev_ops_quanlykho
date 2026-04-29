@@ -54,11 +54,11 @@ export default function Products() {
       if (categoryFilter !== 'Tất cả danh mục') params.category = categoryFilter;
 
       const { data } = await api.get('/products', { params });
-      setProducts(data.data ?? []);
+      setProducts(data.data?.items ?? []);
 
       // Tự động cập nhật danh sách category từ dữ liệu thực
-      if (data.data?.length) {
-        const cats: string[] = Array.from(new Set((data.data as Product[]).map(p => p.category)));
+      if (data.data?.items?.length) {
+        const cats: string[] = Array.from(new Set((data.data.items as Product[]).map(p => p.category)));
         setCategories(prev => Array.from(new Set([...prev, ...cats])));
       }
     } catch (err: any) {
