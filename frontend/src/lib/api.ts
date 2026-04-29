@@ -19,8 +19,8 @@ api.interceptors.response.use(
   res => res,
   async err => {
     const original = err.config;
-    const status   = err.response?.status;
-    const url      = original?.url ?? '';
+    const status = err.response?.status;
+    const url = original?.url ?? '';
 
     if (
       status === 401 &&
@@ -38,7 +38,7 @@ api.interceptors.response.use(
       }
 
       original._retry = true;
-      isRefreshing    = true;
+      isRefreshing = true;
 
       try {
         const { data } = await api.post('/auth/refresh');
