@@ -13,6 +13,7 @@ import Reports from '../pages/Reports';
 import Users from '../pages/Users';
 import Account from '../pages/Account';
 import Transactions from '../pages/Transactions';
+import { ErrorBoundary } from '../component/ErrorBoundary';
 
 type Role = 'admin' | 'warehouse_staff' | 'accountant';
 
@@ -37,7 +38,7 @@ export default function AppRoutes() {
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="products" element={
-          <RoleRoute roles={['admin', 'warehouse_staff']}><Products /></RoleRoute>
+          <RoleRoute roles={['admin', 'warehouse_staff']}><ErrorBoundary><Products /></ErrorBoundary></RoleRoute>
         } />
         <Route path="stock-in" element={
           <RoleRoute roles={['admin', 'warehouse_staff']}><StockIn /></RoleRoute>
