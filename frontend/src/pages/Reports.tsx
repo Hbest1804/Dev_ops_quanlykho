@@ -37,6 +37,7 @@ const getPeriodDates = (period: string): [string, string] => {
   }
   return ['2024-01-01', to];
 };
+<<<<<<< HEAD
 
 export default function Reports() {
   const [period, setPeriod] = useState('Tháng này');
@@ -45,9 +46,16 @@ export default function Reports() {
   const [items, setItems] = useState<ReportItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+=======
+const Reports = () => {
+  const [period, setPeriod] = useState('Tháng này');
+  const [[dateFrom, dateTo], setDates] = useState(getPeriodDates('Tháng này'));
+  const [data, setData] = useState<any[]>([]);
+>>>>>>> 70e3aa7 (fix(frontend): restore missing component definition in Reports.tsx)
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
 
+<<<<<<< HEAD
   const [monthImport,  setMonthImport]  = useState(0);
   const [monthExport,  setMonthExport]  = useState(0);
   const [monthClosing, setMonthClosing] = useState(0);
@@ -62,6 +70,17 @@ export default function Reports() {
   };
 
   const fetchReport = useCallback(async (targetPage = 1) => {
+=======
+  const setDateFrom = (d: string) => setDates([d, dateTo]);
+  const setDateTo = (d: string) => setDates([dateFrom, d]);
+
+  const handlePeriodChange = (p: string) => {
+    setPeriod(p);
+    setDates(getPeriodDates(p));
+  };
+
+  const fetchReport = async () => {
+>>>>>>> 70e3aa7 (fix(frontend): restore missing component definition in Reports.tsx)
     setLoading(true);
     try {
       const params: Record<string, string> = {
@@ -98,10 +117,17 @@ export default function Reports() {
       .finally(() => setLoadingMonth(false));
   }, []);
 
+<<<<<<< HEAD
   const totalPages  = Math.ceil(total / LIMIT);
   const totalImport  = items.reduce((s, r) => s + r.totalImport,  0);
   const totalExport  = items.reduce((s, r) => s + r.totalExport,  0);
   const totalClosing = items.reduce((s, r) => s + r.closingStock, 0);
+=======
+  const totalImported = data.reduce((s, r) => s + r.total_import, 0);
+  const totalExported = data.reduce((s, r) => s + r.total_export, 0);
+  const importOrderCount = data.reduce((s, r) => s + (r.import_count || 0), 0);
+  const exportOrderCount = data.reduce((s, r) => s + (r.export_count || 0), 0);
+>>>>>>> 70e3aa7 (fix(frontend): restore missing component definition in Reports.tsx)
 
   const handleExport = async (format: 'excel' | 'pdf') => {
     const t = toast.loading(`Đang tạo file ${format.toUpperCase()}...`);
@@ -329,4 +355,6 @@ export default function Reports() {
       </div>
     </div>
   );
-}
+};
+
+export default Reports;
