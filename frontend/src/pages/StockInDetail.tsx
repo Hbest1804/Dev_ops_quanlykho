@@ -1,28 +1,127 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Package, Calendar, User, FileText, Clock } from 'lucide-react';
+import {
+  ArrowLeft, CheckCircle, XCircle, Package,
+  Calendar, User, FileText, Clock, Loader2,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
-import { MOCK_IMPORT_ORDERS, type ImportOrder } from '../data/stockInMock';
 import { useConfirm } from '../component/useConfirm';
+import api from '../lib/api';
 
-const MOCK_USERS: Record<number, string> = {
-  1: 'Nguyễn Văn A',
-  2: 'Trần Thị B',
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type ImportOrderItem = {
+  id: number;
+  import_order_id: number;
+  product_id: number;
+  quantity: number;
+  note: string;
+  snapshot_product_code: string;
+  snapshot_product_name: string;
+  snapshot_unit: string;
+  snapshot_category: string;
 };
+
+type ImportOrder = {
+  id: number;
+  code: string;
+  supplier: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+  import_date: string;
+  note: string;
+  created_by: number;
+  confirmed_by: number | null;
+  confirmed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  items: ImportOrderItem[];
+};
+
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const STATUS_MAP = {
   pending:   { label: 'Chờ xử lý', classes: 'bg-orange-100 text-orange-800' },
-  confirmed: { label: 'Đã duyệt',  classes: 'bg-green-100 text-green-800' },
-  cancelled: { label: 'Đã huỷ',    classes: 'bg-red-100 text-red-800' },
+  confirmed: { label: 'Đã duyệt',  classes: 'bg-green-100  text-green-800'  },
+  cancelled: { label: 'Đã huỷ',    classes: 'bg-red-100    text-red-800'    },
 };
 
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export default function StockInDetail() {
-  const { id } = useParams();
+  const { id }   = useParams();
   const navigate = useNavigate();
   const { confirm, dialog } = useConfirm();
-  const [orders, setOrders] = useState<ImportOrder[]>(MOCK_IMPORT_ORDERS);
 
-  const order = orders.find(o => o.id === Number(id));
+  const [order, setOrder]               = useState<ImportOrder | null>(null);
+  const [loading, setLoading]           = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // ── Fetch ────────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    api.get(`/import-orders/${id}`)
+      .then(({ data }) => setOrder(data.data))
+      .catch(() => toast.error('Không thể tải thông tin phiếu nhập'))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  // ── Actions ──────────────────────────────────────────────────────────────
+
+  const handleConfirm = async () => {
+    if (!order) return;
+    if (!await confirm({
+      title: 'Xác nhận phiếu nhập',
+      message: 'Kho hàng sẽ được cập nhật sau khi xác nhận.',
+      confirmLabel: 'Xác nhận',
+      variant: 'primary',
+    })) return;
+
+    setActionLoading(true);
+    try {
+      const { data } = await api.post(`/import-orders/${order.id}/confirm`);
+      setOrder(data.data);
+      toast.success('Đã xác nhận phiếu nhập!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Xác nhận thất bại');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!order) return;
+    if (!await confirm({
+      title: 'Huỷ phiếu nhập',
+      message: 'Bạn có chắc muốn huỷ phiếu nhập này? Hành động không thể hoàn tác.',
+      confirmLabel: 'Huỷ phiếu',
+      cancelLabel: 'Quay lại',
+      variant: 'danger',
+    })) return;
+
+    setActionLoading(true);
+    try {
+      const { data } = await api.post(`/import-orders/${order.id}/cancel`);
+      setOrder(data.data);
+      toast.success('Đã huỷ phiếu nhập');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Hủy phiếu thất bại');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ── Loading / Not found ───────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 gap-3 text-slate-500">
+        <Loader2 size={20} className="animate-spin" />
+        <span className="text-sm">Đang tải phiếu nhập...</span>
+      </div>
+    );
+  }
 
   if (!order) {
     return (
@@ -34,29 +133,15 @@ export default function StockInDetail() {
   }
 
   const totalQty = order.items.reduce((acc, i) => acc + i.quantity, 0);
-  const status = STATUS_MAP[order.status];
+  const status   = STATUS_MAP[order.status];
 
-  const handleConfirm = async () => {
-    if (!await confirm({ title: 'Xác nhận phiếu nhập', message: 'Kho hàng sẽ được cập nhật sau khi xác nhận.', confirmLabel: 'Xác nhận', variant: 'primary' })) return;
-    setOrders(prev => prev.map(o => o.id === order.id
-      ? { ...o, status: 'confirmed', confirmed_by: 1, confirmed_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-      : o
-    ));
-    toast.success('Đã xác nhận phiếu nhập!');
-  };
-
-  const handleCancel = async () => {
-    if (!await confirm({ title: 'Huỷ phiếu nhập', message: 'Bạn có chắc muốn huỷ phiếu nhập này? Hành động không thể hoàn tác.', confirmLabel: 'Huỷ phiếu', cancelLabel: 'Quay lại', variant: 'danger' })) return;
-    setOrders(prev => prev.map(o => o.id === order.id
-      ? { ...o, status: 'cancelled', updated_at: new Date().toISOString() }
-      : o
-    ));
-    toast.success('Đã huỷ phiếu nhập');
-  };
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6 w-full flex-1 flex flex-col min-h-0">
       {dialog}
+
+      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/stock-in')} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors cursor-pointer">
@@ -73,13 +158,25 @@ export default function StockInDetail() {
           </div>
         </div>
 
+        {/* AC-1 & AC-3: chỉ hiện nút khi status === 'pending' */}
         {order.status === 'pending' && (
           <div className="flex gap-2 shrink-0">
-            <button onClick={handleCancel} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50 rounded-lg transition-colors cursor-pointer">
+            <button
+              onClick={handleCancel}
+              disabled={actionLoading}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-60"
+            >
               <XCircle size={16} /> Huỷ phiếu
             </button>
-            <button onClick={handleConfirm} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg transition-colors cursor-pointer">
-              <CheckCircle size={16} /> Xác nhận
+            <button
+              onClick={handleConfirm}
+              disabled={actionLoading}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg transition-colors cursor-pointer disabled:opacity-60"
+            >
+              {actionLoading
+                ? <Loader2 size={16} className="animate-spin" />
+                : <CheckCircle size={16} />}
+              Xác nhận
             </button>
           </div>
         )}
@@ -129,7 +226,7 @@ export default function StockInDetail() {
               <User size={16} className="text-slate-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-slate-500">Người tạo</p>
-                <p className="text-sm font-medium text-slate-800">{MOCK_USERS[order.created_by] ?? `User #${order.created_by}`}</p>
+                <p className="text-sm font-medium text-slate-800">User #{order.created_by}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -151,7 +248,7 @@ export default function StockInDetail() {
                 <CheckCircle size={16} className="text-green-500 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs text-slate-500">Người xác nhận</p>
-                  <p className="text-sm font-medium text-slate-800">{MOCK_USERS[order.confirmed_by] ?? `User #${order.confirmed_by}`}</p>
+                  <p className="text-sm font-medium text-slate-800">User #{order.confirmed_by}</p>
                 </div>
               </div>
             )}
