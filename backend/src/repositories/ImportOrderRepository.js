@@ -84,10 +84,10 @@ export const ImportOrderRepository = {
     try {
       await client.query('BEGIN');
 
-      const { rows: [{ count }] } = await client.query(
-        'SELECT COUNT(*) FROM import_orders',
+      const { rows: [{ nextval }] } = await client.query(
+        `SELECT nextval('import_order_code_seq')`,
       );
-      const code = `PN${String(Number(count) + 1).padStart(3, '0')}`;
+      const code = `PN${String(Number(nextval)).padStart(3, '0')}`;
 
       const { rows: [order] } = await client.query(
         `INSERT INTO import_orders

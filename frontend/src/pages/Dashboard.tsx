@@ -19,7 +19,7 @@ export default function Dashboard() {
                     <button onClick={exportToPDF} className="flex items-center gap-2 border border-[#c5c6cd] bg-white px-4 py-2 rounded text-sm font-medium text-[#0b1c30] hover:bg-gray-50 transition-colors cursor-pointer">
                         <Download size={16} /> Xuất PDF
                     </button>
-                    <button onClick={() => exportToExcel} className="flex items-center gap-2 border border-[#c5c6cd] bg-white px-4 py-2 rounded text-sm font-medium text-[#0b1c30] hover:bg-gray-50 transition-colors cursor-pointer">
+                    <button onClick={() => exportToExcel([], 'Dashboard')} className="flex items-center gap-2 border border-[#c5c6cd] bg-white px-4 py-2 rounded text-sm font-medium text-[#0b1c30] hover:bg-gray-50 transition-colors cursor-pointer">
                         <Table size={16} /> Xuất Excel
                     </button>
                 </div>
