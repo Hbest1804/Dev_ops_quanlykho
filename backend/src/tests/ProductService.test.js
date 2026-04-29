@@ -38,8 +38,10 @@ describe('ProductService Unit Tests', () => {
 
       expect(ProductRepository.findAll).toHaveBeenCalledWith({ search: undefined, category: undefined, page: 1, limit: 20 });
       expect(result).toEqual({
-        data: [],
-        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
+        items: [],
+        total: 0,
+        page: 1,
+        limit: 20
       });
     });
 
@@ -50,8 +52,8 @@ describe('ProductService Unit Tests', () => {
       const result = await ProductService.findAll({ search: 'bàn phím' });
 
       expect(ProductRepository.findAll).toHaveBeenCalledWith(expect.objectContaining({ search: 'bàn phím' }));
-      expect(result.data).toHaveLength(1);
-      expect(result.data[0].name).toBe('bàn phím');
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('bàn phím');
     });
 
     it('UT-PROD-GETALL-003: Lọc theo category', async () => {
@@ -61,7 +63,7 @@ describe('ProductService Unit Tests', () => {
       const result = await ProductService.findAll({ category: 'Thiết bị ngoại vi' });
 
       expect(ProductRepository.findAll).toHaveBeenCalledWith(expect.objectContaining({ category: 'Thiết bị ngoại vi' }));
-      expect(result.data[0].category).toBe('Thiết bị ngoại vi');
+      expect(result.items[0].category).toBe('Thiết bị ngoại vi');
     });
 
     it('UT-PROD-GETALL-004: Không trả về sản phẩm đã soft delete', async () => {
@@ -73,7 +75,7 @@ describe('ProductService Unit Tests', () => {
       const result = await ProductService.findAll({});
 
       // Kiểm tra items không chứa SP deleted bằng cách mock dữ liệu hợp lệ
-      expect(result.data).not.toContainEqual(expect.objectContaining({ is_deleted: true }));
+      expect(result.items).not.toContainEqual(expect.objectContaining({ is_deleted: true }));
     });
   });
 
@@ -91,7 +93,7 @@ describe('ProductService Unit Tests', () => {
     it('UT-PROD-GETBYID-002: Sp không tồn tại', async () => {
       ProductRepository.findById.mockResolvedValue(null);
 
-      await expect(ProductService.findById(9999)).rejects.toThrowError('Sản phẩm không tồn tại');
+      await expect(ProductService.findById(9999)).rejects.toThrowError('Not found');
     });
 
     it('UT-PROD-GETBYID-003: Sp đã soft delete', async () => {
