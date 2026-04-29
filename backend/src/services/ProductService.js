@@ -42,8 +42,8 @@ export const ProductService = {
    * @param {object} body - { code, name, category, unit, description, initialStock }
    */
   async create({ code, name, category, unit, description, initialStock }) {
-    if (!code || !name || !category || !unit) {
-      throw BadRequest('code, name, category và unit là bắt buộc');
+    if (!code || !name || !category || !unit || !description) {
+      throw BadRequest('code, name, category, unit và description là bắt buộc');
     }
 
     const stock = initialStock !== undefined ? parseInt(initialStock) : 0;

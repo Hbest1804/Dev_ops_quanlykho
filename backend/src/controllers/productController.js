@@ -35,7 +35,9 @@ export const ProductController = {
   async getById(req, res) {
     try {
       const product = await ProductService.findById(req.params.id);
-      res.json({ success: true, data: product });
+      // Map snake_case → camelCase theo spec
+      const { created_at, updated_at, ...rest } = product;
+      res.json({ success: true, data: { ...rest, createdAt: created_at } });
     } catch (err) {
       handleError(err, res);
     }
@@ -50,10 +52,10 @@ export const ProductController = {
     try {
       const { code, name, category, unit, description, initialStock } = req.body;
 
-      if (!code || !name || !category || !unit) {
+      if (!code || !name || !category || !unit || !description) {
         return res.status(400).json({
           success: false,
-          message: 'Thiếu trường bắt buộc: code, name, category, unit',
+          message: 'Thiếu trường bắt buộc: code, name, category, unit, description',
           data: null,
         });
       }
