@@ -150,7 +150,7 @@ export const ImportOrderRepository = {
                 ioi.snapshot_product_code, ioi.snapshot_product_name, ioi.snapshot_unit
            FROM import_order_items ioi
           WHERE ioi.import_order_id = $1
-          ORDER BY ioi.product_id`,
+          ORDER BY ioi.product_id ASC`,
         [id],
       );
 
