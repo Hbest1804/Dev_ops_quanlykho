@@ -170,7 +170,46 @@ export default function Reports() {
               {card.icon}
             </div>
           </div>
+<<<<<<< HEAD
         ))}
+=======
+          <p className="text-xs text-slate-400">{importOrderCount} phiếu nhập</p>
+        </div>
+
+        <div className="bg-white border border-[#E2E8F0] shadow-sm rounded p-5 flex flex-col justify-between h-32 relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#e5eeff] rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-medium text-[#45474c] mb-1">Tổng xuất kho</p>
+              <h3 className="text-[32px] font-semibold text-[#0b1c30] leading-none">{totalExported.toLocaleString()}</h3>
+            </div>
+            <ArrowUpFromLine size={18} className="text-[#0058be] mt-1 shrink-0" />
+          </div>
+          <p className="text-xs text-slate-400">{exportOrderCount} phiếu xuất</p>
+        </div>
+
+        <div className="bg-white border border-[#E2E8F0] shadow-sm rounded p-5 flex flex-col justify-between h-32 relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#e5eeff] rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-medium text-[#45474c] mb-1">Chênh lệch</p>
+              <h3 className={`text-[32px] font-semibold leading-none ${totalImported - totalExported >= 0 ? 'text-[#166534]' : 'text-[#991b1b]'}`}>
+                {totalImported - totalExported >= 0 ? '+' : ''}{(totalImported - totalExported).toLocaleString()}
+              </h3>
+            </div>
+            <Package size={18} className="text-[#0058be] mt-1 shrink-0" />
+          </div>
+          <p className="text-xs text-slate-400">Nhập − Xuất</p>
+        </div>
+
+        <div className="bg-white border border-[#E2E8F0] shadow-sm rounded p-5 flex flex-col justify-between h-32 relative overflow-hidden group text-center items-center justify-center">
+          <p className="text-xs font-medium text-[#45474c] mb-1">Dữ liệu thời gian thực</p>
+          <div className="flex items-center gap-2 text-[#0058be]">
+             <Package size={24} />
+             <span className="text-sm font-semibold">WareFlow API</span>
+          </div>
+        </div>
+>>>>>>> 6893acc (fix(frontend): fix syntax error in Reports.tsx)
       </div>
 
       {/* Filter */}
