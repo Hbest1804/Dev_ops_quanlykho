@@ -168,10 +168,14 @@ export const ImportOrderRepository = {
 
       // Cập nhật tồn kho + ghi log cho mỗi item
       for (const item of items) {
-        const { rows: [{ stock }] } = await client.query(
+        const { rows } = await client.query(
           `UPDATE products SET stock = stock + $1 WHERE id = $2 RETURNING stock`,
           [item.quantity, item.product_id],
         );
+        if (rows.length === 0) {
+          throw Object.assign(new Error(`Sản phẩm #${item.product_id} không tồn tại hoặc đã bị xóa`), { status: 400 });
+        }
+        const [{ stock }] = rows;
 
         await client.query(
           `INSERT INTO stock_transactions

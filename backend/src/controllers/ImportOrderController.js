@@ -22,7 +22,7 @@ export const ImportOrderController = {
       const { supplier, import_date, note, items } = req.body;
       const order = await ImportOrderService.create(
         { supplier, import_date, note, items },
-        req.user.id,
+        req.user.sub,
       );
       res.status(201).json({ success: true, data: order });
     } catch (err) { next(err); }
@@ -32,7 +32,7 @@ export const ImportOrderController = {
     try {
       const order = await ImportOrderService.confirm(
         Number(req.params.id),
-        req.user.id,
+        req.user.sub,
       );
       res.json({ success: true, data: order });
     } catch (err) { next(err); }

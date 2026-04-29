@@ -60,6 +60,8 @@ CREATE TABLE products (
 
 
 -- ── 4. import_orders ─────────────────────────────────────────
+CREATE SEQUENCE import_order_code_seq START 1;
+
 CREATE TABLE import_orders (
     id           SERIAL          PRIMARY KEY,
     code         VARCHAR(20)     NOT NULL UNIQUE,               -- PN001, PN002...
