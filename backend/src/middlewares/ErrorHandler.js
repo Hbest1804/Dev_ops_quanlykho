@@ -10,3 +10,4 @@ export function errorHandler(err, req, res, next) {
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 }
+

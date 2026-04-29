@@ -7,7 +7,7 @@ export const ProductService = {
    * @param {object} query - { search, category, page, limit }
    */
   async findAll(query = {}) {
-    const page  = Math.max(1, parseInt(query.page)  || 1);
+    const page = Math.max(1, parseInt(query.page) || 1);
     const limit = Math.min(100, parseInt(query.limit) || 20);
     const { search, category } = query;
 
@@ -17,13 +17,10 @@ export const ProductService = {
     ]);
 
     return {
-      data: products,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+      items: products,
+      total: parseInt(total, 10),
+      page,
+      limit,
     };
   },
 
@@ -35,7 +32,7 @@ export const ProductService = {
     if (isNaN(parsedId)) throw BadRequest('ID sản phẩm không hợp lệ');
 
     const product = await ProductRepository.findById(parsedId);
-    if (!product) throw NotFound('Sản phẩm không tồn tại');
+    if (!product) throw NotFound('Not found');
 
     return product;
   },
