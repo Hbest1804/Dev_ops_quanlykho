@@ -2,13 +2,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches:
-      - develop
-      - main
+    branches: [main, develop]
   pull_request:
-    branches:
-      - develop
-      - main
+    branches: [main, develop]
 
 env:
   REGISTRY: ghcr.io
@@ -17,10 +13,10 @@ env:
 
 jobs:
   # ────────────────────────────────────────────
-  # JOB 1: Lint & Build – Backend
+  # JOB 1: Backend CI
   # ────────────────────────────────────────────
   backend-ci:
-    name: 🔧 Backend – Lint & Install
+    name: 🔧 Backend – Lint, Test & Build
     runs-on: ubuntu-latest
 
     defaults:
@@ -31,7 +27,7 @@ jobs:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node.js 22
+      - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -41,17 +37,20 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
+      - name: 🔍 Run ESLint
+        run: npm run lint
+
       - name: 🧪 Run Unit Tests
         run: npm test
 
-      - name: ✅ Verify app entry point exists
-        run: test -f src/app.js && echo "app.js found ✓"
+      - name: 🏗️ Build (optional)
+        run: npm run build || echo "No build step"
 
   # ────────────────────────────────────────────
-  # JOB 2: Lint & Build – Frontend
+  # JOB 2: Frontend CI
   # ────────────────────────────────────────────
   frontend-ci:
-    name: 🎨 Frontend – Lint & Build
+    name: 🎨 Frontend – Lint, Test & Build
     runs-on: ubuntu-latest
 
     defaults:
@@ -62,7 +61,7 @@ jobs:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node.js 22
+      - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -75,23 +74,25 @@ jobs:
       - name: 🔍 Run ESLint
         run: npm run lint
 
-      - name: 🏗️ Build production bundle
+      - name: 🧪 Run Unit Tests
+        run: npm test
+
+      - name: 🏗️ Build production
         run: npm run build
 
-      - name: 📤 Upload build artifact
+      - name: 📤 Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: frontend/dist/
-          retention-days: 7
 
   # ────────────────────────────────────────────
-  # JOB 3: Integration Test with PostgreSQL
+  # JOB 3: Integration Test
   # ────────────────────────────────────────────
   integration-test:
-    name: 🧪 Integration Test (Backend + PostgreSQL)
+    name: 🧪 Integration Test (PostgreSQL)
     runs-on: ubuntu-latest
-    needs: [backend-ci]
+    needs: backend-ci
 
     services:
       postgres:
@@ -103,7 +104,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d quanlykho"
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -114,32 +115,24 @@ jobs:
 
     env:
       NODE_ENV: test
-      PORT: 3000
       POSTGRES_HOST: localhost
       POSTGRES_PORT: 5432
       POSTGRES_DB: quanlykho
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      JWT_SECRET: ci-test-secret-not-for-production
-      ADMIN_EMAIL: admin@ci.local
-      ADMIN_PASSWORD: adminpass123
-      CORS_ORIGIN: http://localhost:5173
 
     steps:
-      - name: ⬇️ Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node.js 22
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - name: 📦 Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: 🗄️ Apply database schema
+      - name: 🗄️ Apply DB schema
         run: |
           PGPASSWORD=postgres psql \
             -h localhost \
@@ -147,25 +140,19 @@ jobs:
             -d quanlykho \
             -f ../wareflow_schema.sql
 
-      - name: "🚀 Smoke-test: start server then ping health"
+      - name: 🚀 Start server & test health
         run: |
           node src/app.js &
-          SERVER_PID=$!
-          echo "Server PID: $SERVER_PID"
           sleep 5
-          curl --fail --retry 5 --retry-delay 2 http://localhost:3000/api/health \
-            || (kill $SERVER_PID && exit 1)
-          kill $SERVER_PID
+          curl --fail http://localhost:3000/api/health
 
   # ────────────────────────────────────────────
-  # JOB 4: Docker Build & Push (chỉ chạy trên main/develop)
+  # JOB 4: Docker Build & Push
   # ────────────────────────────────────────────
   docker-build-push:
     name: 🐳 Docker Build & Push
     runs-on: ubuntu-latest
     needs: [backend-ci, frontend-ci, integration-test]
-
-    # Chỉ push image khi push lên branch chính, không phải PR
     if: github.event_name == 'push'
 
     permissions:
@@ -173,76 +160,44 @@ jobs:
       packages: write
 
     steps:
-      - name: ⬇️ Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🔑 Log in to GitHub Container Registry
+      - name: 🔑 Login GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🏷️ Extract Docker metadata (Backend)
-        id: meta-backend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_BACKEND }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=sha-
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-
-      - name: 🏷️ Extract Docker metadata (Frontend)
-        id: meta-frontend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_FRONTEND }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=sha-
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-
-      - name: 🐳 Set up Docker Buildx
+      - name: 🐳 Setup Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 🏗️ Build & Push Backend image
+      - name: 🏗️ Build & Push Backend
         uses: docker/build-push-action@v5
         with:
           context: ./backend
-          target: production
           push: true
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_BACKEND }}:latest
 
-      - name: 🏗️ Build & Push Frontend image
+      - name: 🏗️ Build & Push Frontend
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
-          target: production
           push: true
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_FRONTEND }}:latest
 
   # ────────────────────────────────────────────
   # JOB 5: Summary
   # ────────────────────────────────────────────
-  ci-summary:
-    name: ✅ CI Summary
+  summary:
+    name: 📋 CI Summary
     runs-on: ubuntu-latest
     needs: [backend-ci, frontend-ci, integration-test]
     if: always()
 
     steps:
-      - name: 📋 Print CI result summary
+      - name: Print summary
         run: |
-          echo "## CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
-          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend CI   | ${{ needs.backend-ci.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend CI  | ${{ needs.frontend-ci.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Integration  | ${{ needs.integration-test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "Backend: ${{ needs.backend-ci.result }}"
+          echo "Frontend: ${{ needs.frontend-ci.result }}"
+          echo "Integration: ${{ needs.integration-test.result }}"
