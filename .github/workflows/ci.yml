@@ -41,6 +41,9 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
+      - name: 🧪 Run Unit Tests
+        run: npm test
+
       - name: ✅ Verify app entry point exists
         run: test -f src/app.js && echo "app.js found ✓"
 
