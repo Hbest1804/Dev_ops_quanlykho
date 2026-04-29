@@ -55,28 +55,37 @@ export const ExportOrderService = {
       if (!items || items.length === 0)
         throw BadRequest('Phiếu xuất không có sản phẩm nào');
 
+      const productIds = items.map(i => i.product_id);
+      const products = await ProductRepository.findManyByIdsForUpdate(productIds, client);
+      const productMap = new Map(products.map(p => [p.id, p]));
+
+      const stockUpdates = [];
+      const transactions = [];
+
       for (const item of items) {
-        const product = await ProductRepository.findByIdForUpdate(item.product_id, client);
+        const product = productMap.get(item.product_id);
         if (!product)
           throw BadRequest(`Sản phẩm (ID: ${item.product_id}) không tồn tại`);
         if (product.stock < item.quantity)
           throw BadRequest(`Sản phẩm "${product.name}" không đủ tồn kho (Hiện tại: ${product.stock}, Yêu cầu: ${item.quantity})`);
 
-        const updatedProduct = await ProductRepository.updateStock(product.id, -item.quantity, client);
-
-        await StockTransactionRepository.create({
+        stockUpdates.push({ id: product.id, change: -item.quantity });
+        transactions.push({
           productId:           product.id,
           type:                'export',
           quantity:            -item.quantity,
-          stockAfter:          updatedProduct.stock,
+          stockAfter:          product.stock - item.quantity,
           refType:             'export_order',
           refId:               order.id,
           snapshotProductCode: item.snapshot_product_code,
           snapshotProductName: item.snapshot_product_name,
           snapshotUnit:        item.snapshot_unit,
           createdBy:           userId,
-        }, client);
+        });
       }
+
+      await ProductRepository.updateMultipleStocks(stockUpdates, client);
+      await StockTransactionRepository.createMany(transactions, client);
 
       const confirmedOrder = await ExportOrderRepository.updateStatus(id, 'confirmed', userId, client);
       await client.query('COMMIT');

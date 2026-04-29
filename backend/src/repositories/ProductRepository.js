@@ -72,6 +72,15 @@ export const ProductRepository = {
     return rows[0] ?? null;
   },
 
+  async findManyByIdsForUpdate(ids, client = pool) {
+    if (!ids.length) return [];
+    const { rows } = await client.query(
+      'SELECT * FROM products WHERE id = ANY($1) FOR UPDATE',
+      [ids]
+    );
+    return rows;
+  },
+
   async findByIds(ids) {
     if (!ids.length) return [];
     const { rows } = await pool.query(
@@ -132,6 +141,27 @@ export const ProductRepository = {
       [quantityChange, id]
     );
     return rows[0] ?? null;
+  },
+
+  async updateMultipleStocks(updates, client = pool) {
+    if (!updates.length) return [];
+
+    const values = [];
+    const placeholders = updates.map((u, i) => {
+      const offset = i * 2;
+      values.push(u.id, u.change);
+      return `($${offset + 1}::int, $${offset + 2}::int)`;
+    }).join(', ');
+
+    const { rows } = await client.query(
+      `UPDATE products AS p
+       SET stock = p.stock + v.change
+       FROM (VALUES ${placeholders}) AS v(id, change)
+       WHERE p.id = v.id
+       RETURNING p.*`,
+      values
+    );
+    return rows;
   },
 
   async countTransactions(productId) {
