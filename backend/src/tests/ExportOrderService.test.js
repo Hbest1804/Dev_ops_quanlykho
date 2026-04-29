@@ -2,20 +2,37 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ExportOrderService } from '../services/ExportOrderService.js';
 import { ExportOrderRepository } from '../repositories/ExportOrderRepository.js';
 import { ProductRepository } from '../repositories/ProductRepository.js';
+import { StockTransactionRepository } from '../repositories/StockTransactionRepository.js';
+import { pool } from '../db/Pool.js';
 
 vi.mock('../repositories/ExportOrderRepository.js', () => ({
   ExportOrderRepository: {
-    createWithItems: vi.fn(),
+    createWithItems:       vi.fn(),
+    findById:              vi.fn(),
+    findItemsByOrderId:    vi.fn(),
+    updateStatus:          vi.fn(),
   },
 }));
 
 vi.mock('../repositories/ProductRepository.js', () => ({
   ProductRepository: {
-    findByIdsWithStock: vi.fn(),
+    findByIdsWithStock:        vi.fn(),
+    findManyByIdsForUpdate:    vi.fn(),
+    updateMultipleStocks:      vi.fn(),
   },
 }));
 
-const mockOrder = () => ({
+vi.mock('../repositories/StockTransactionRepository.js', () => ({
+  StockTransactionRepository: {
+    createMany: vi.fn(),
+  },
+}));
+
+vi.mock('../db/Pool.js', () => ({
+  pool: { connect: vi.fn() },
+}));
+
+const mockOrder = (overrides = {}) => ({
   id: 8,
   code: 'PX008',
   reason: 'sale',
@@ -25,6 +42,7 @@ const mockOrder = () => ({
   created_by: 1,
   created_at: new Date(),
   updated_at: new Date(),
+  ...overrides,
 });
 
 const validPayload = () => ({
@@ -119,6 +137,67 @@ describe('ExportOrderService Unit Tests', () => {
         expect.anything(),
         [expect.objectContaining({ productId: 1, quantity: 5 })]
       );
+    });
+  });
+
+  describe('confirmExportOrder()', () => {
+    let mockClient;
+
+    beforeEach(() => {
+      mockClient = { query: vi.fn(), release: vi.fn() };
+      pool.connect.mockResolvedValue(mockClient);
+    });
+
+    it('UT-EXPORT-CONFIRM-001: Xác nhận phiếu xuất thành công (bulk)', async () => {
+      const mockItems = [
+        { product_id: 10, quantity: 2, snapshot_product_code: 'P1', snapshot_product_name: 'Prod 1', snapshot_unit: 'Cái' },
+        { product_id: 20, quantity: 5, snapshot_product_code: 'P2', snapshot_product_name: 'Prod 2', snapshot_unit: 'Thùng' },
+      ];
+      const mockProducts = [
+        { id: 10, name: 'Prod 1', stock: 10 },
+        { id: 20, name: 'Prod 2', stock: 20 },
+      ];
+
+      ExportOrderRepository.findById.mockResolvedValue(mockOrder({ id: 1 }));
+      ExportOrderRepository.findItemsByOrderId.mockResolvedValue(mockItems);
+      ProductRepository.findManyByIdsForUpdate.mockResolvedValue(mockProducts);
+      ProductRepository.updateMultipleStocks.mockResolvedValue([]);
+      StockTransactionRepository.createMany.mockResolvedValue([]);
+      ExportOrderRepository.updateStatus.mockResolvedValue(mockOrder({ id: 1, status: 'confirmed' }));
+
+      const result = await ExportOrderService.confirmExportOrder(1, 100);
+
+      expect(result.status).toBe('confirmed');
+      expect(ProductRepository.findManyByIdsForUpdate).toHaveBeenCalledWith([10, 20], mockClient);
+      expect(ProductRepository.updateMultipleStocks).toHaveBeenCalledWith(
+        [{ id: 10, change: -2 }, { id: 20, change: -5 }],
+        mockClient,
+      );
+      expect(StockTransactionRepository.createMany).toHaveBeenCalledOnce();
+      expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
+      expect(mockClient.release).toHaveBeenCalled();
+    });
+
+    it('UT-EXPORT-CONFIRM-002: Không đủ tồn kho → 400, ROLLBACK', async () => {
+      ExportOrderRepository.findById.mockResolvedValue(mockOrder({ id: 1 }));
+      ExportOrderRepository.findItemsByOrderId.mockResolvedValue([
+        { product_id: 10, quantity: 100 },
+      ]);
+      ProductRepository.findManyByIdsForUpdate.mockResolvedValue([
+        { id: 10, name: 'Sản phẩm X', stock: 10 },
+      ]);
+
+      await expect(ExportOrderService.confirmExportOrder(1, 1))
+        .rejects.toMatchObject({ message: expect.stringContaining('không đủ tồn kho') });
+
+      expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+    });
+
+    it('UT-EXPORT-CONFIRM-003: Phiếu không tồn tại → 404', async () => {
+      ExportOrderRepository.findById.mockResolvedValue(null);
+
+      await expect(ExportOrderService.confirmExportOrder(1, 1))
+        .rejects.toMatchObject({ status: 404, message: 'Không tìm thấy phiếu xuất' });
     });
   });
 });
