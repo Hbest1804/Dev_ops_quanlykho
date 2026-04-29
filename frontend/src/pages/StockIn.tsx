@@ -1,11 +1,49 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, CheckCircle, XCircle, X, Trash2 } from 'lucide-react';
 import CustomSelect from '../component/CustomSelect';
 import DatePicker from '../component/DatePicker';
 import { useConfirm } from '../component/useConfirm';
 import toast from 'react-hot-toast';
-import { MOCK_IMPORT_ORDERS, MOCK_PRODUCTS, type ImportOrder } from '../data/stockInMock';
+import api from '../lib/api';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type ImportOrderItem = {
+  id: number;
+  import_order_id: number;
+  product_id: number;
+  quantity: number;
+  note: string;
+  snapshot_product_code: string;
+  snapshot_product_name: string;
+  snapshot_unit: string;
+  snapshot_category: string;
+};
+
+type ImportOrder = {
+  id: number;
+  code: string;
+  supplier: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+  import_date: string;
+  note: string;
+  created_by: number;
+  confirmed_by: number | null;
+  confirmed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  items: ImportOrderItem[];
+};
+
+type Product = {
+  id: number;
+  code: string;
+  name: string;
+  unit: string;
+  category: string;
+  stock: number;
+};
 
 type FormItem = {
   product_id: number;
@@ -31,15 +69,50 @@ const EMPTY_FORM: FormData = {
   items: [],
 };
 
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export default function StockIn() {
   const navigate = useNavigate();
   const { confirm, dialog } = useConfirm();
-  const [receipts, setReceipts] = useState<ImportOrder[]>(MOCK_IMPORT_ORDERS);
-  const [loading] = useState(false);
+
+  const [receipts, setReceipts] = useState<ImportOrder[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Trạng thái: Tất cả');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
+  const [submitting, setSubmitting] = useState(false);
+
+  // ── Fetch helpers ────────────────────────────────────────────────────────
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/import-orders');
+      setReceipts(data.data);
+    } catch {
+      toast.error('Không thể tải danh sách phiếu nhập');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      const { data } = await api.get('/products');
+      setProducts(data.data);
+    } catch {
+      // products list optional for modal; ignore silently
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+    fetchProducts();
+  }, [fetchOrders, fetchProducts]);
+
+  // ── Modal helpers ────────────────────────────────────────────────────────
 
   const closeModal = () => {
     setIsModalOpen(false);
@@ -48,7 +121,15 @@ export default function StockIn() {
 
   const addItem = () => setFormData(f => ({
     ...f,
-    items: [...f.items, { product_id: 0, snapshot_product_code: '', snapshot_product_name: '', snapshot_unit: '', snapshot_category: '', quantity: '', note: '' }],
+    items: [...f.items, {
+      product_id: 0,
+      snapshot_product_code: '',
+      snapshot_product_name: '',
+      snapshot_unit: '',
+      snapshot_category: '',
+      quantity: '',
+      note: '',
+    }],
   }));
 
   const removeItem = (idx: number) => setFormData(f => ({
@@ -62,7 +143,7 @@ export default function StockIn() {
   }));
 
   const selectProduct = (idx: number, productId: number) => {
-    const p = MOCK_PRODUCTS.find(p => p.id === productId);
+    const p = products.find(p => p.id === productId);
     if (!p) return;
     updateItem(idx, {
       product_id: p.id,
@@ -73,56 +154,75 @@ export default function StockIn() {
     });
   };
 
-  const handleConfirm = async (id: number) => {
-    if (!await confirm({ title: 'Xác nhận phiếu nhập', message: 'Kho hàng sẽ được cập nhật sau khi xác nhận.', confirmLabel: 'Xác nhận', variant: 'primary' })) return;
-    setReceipts(receipts.map(r => r.id === id ? { ...r, status: 'confirmed' as const, confirmed_by: 1, confirmed_at: new Date().toISOString(), updated_at: new Date().toISOString() } : r));
-    toast.success('Đã xác nhận phiếu nhập!');
-  };
+  // ── CRUD actions ─────────────────────────────────────────────────────────
 
-  const handleCreate = (e: FormEvent) => {
+  const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
     if (!formData.supplier.trim()) { toast.error('Vui lòng nhập tên nhà cung cấp'); return; }
-    if (!formData.import_date) { toast.error('Vui lòng chọn ngày nhập hàng'); return; }
+    if (!formData.import_date)     { toast.error('Vui lòng chọn ngày nhập hàng'); return; }
     for (const item of formData.items) {
       if (!item.product_id) { toast.error('Vui lòng chọn sản phẩm cho tất cả các dòng hàng'); return; }
       if (!item.quantity || parseInt(item.quantity) <= 0) { toast.error('Số lượng phải lớn hơn 0'); return; }
     }
-    const now = new Date().toISOString();
-    const orderId = Date.now();
-    const newReceipt: ImportOrder = {
-      id: orderId,
-      code: `PN${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
-      supplier: formData.supplier.trim(),
-      status: 'pending',
-      import_date: formData.import_date,
-      note: formData.note.trim(),
-      created_by: 1,
-      confirmed_by: null,
-      confirmed_at: null,
-      created_at: now,
-      updated_at: now,
-      items: formData.items.map((item, idx) => ({
-        id: orderId + idx + 1,
-        import_order_id: orderId,
-        product_id: item.product_id,
-        quantity: parseInt(item.quantity),
-        note: item.note.trim(),
-        snapshot_product_code: item.snapshot_product_code,
-        snapshot_product_name: item.snapshot_product_name,
-        snapshot_unit: item.snapshot_unit,
-        snapshot_category: item.snapshot_category,
-      })),
-    };
-    setReceipts([newReceipt, ...receipts]);
-    toast.success('Đã tạo phiếu nhập mới');
-    closeModal();
+
+    setSubmitting(true);
+    try {
+      await api.post('/import-orders', {
+        supplier: formData.supplier.trim(),
+        import_date: formData.import_date,
+        note: formData.note.trim(),
+        items: formData.items.map(item => ({
+          product_id: item.product_id,
+          quantity: parseInt(item.quantity),
+          note: item.note.trim(),
+        })),
+      });
+      toast.success('Đã tạo phiếu nhập mới');
+      closeModal();
+      fetchOrders();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Tạo phiếu nhập thất bại');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleConfirm = async (id: number) => {
+    if (!await confirm({
+      title: 'Xác nhận phiếu nhập',
+      message: 'Kho hàng sẽ được cập nhật sau khi xác nhận.',
+      confirmLabel: 'Xác nhận',
+      variant: 'primary',
+    })) return;
+
+    try {
+      await api.post(`/import-orders/${id}/confirm`);
+      toast.success('Đã xác nhận phiếu nhập!');
+      fetchOrders();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Xác nhận thất bại');
+    }
   };
 
   const handleCancel = async (id: number) => {
-    if (!await confirm({ title: 'Huỷ phiếu nhập', message: 'Bạn có chắc muốn huỷ phiếu nhập này? Hành động không thể hoàn tác.', confirmLabel: 'Huỷ phiếu', cancelLabel: 'Quay lại', variant: 'danger' })) return;
-    setReceipts(receipts.map(r => r.id === id ? { ...r, status: 'cancelled' as const, updated_at: new Date().toISOString() } : r));
-    toast.success('Đã huỷ phiếu nhập');
+    if (!await confirm({
+      title: 'Huỷ phiếu nhập',
+      message: 'Bạn có chắc muốn huỷ phiếu nhập này? Hành động không thể hoàn tác.',
+      confirmLabel: 'Huỷ phiếu',
+      cancelLabel: 'Quay lại',
+      variant: 'danger',
+    })) return;
+
+    try {
+      await api.post(`/import-orders/${id}/cancel`);
+      toast.success('Đã huỷ phiếu nhập');
+      fetchOrders();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Hủy phiếu thất bại');
+    }
   };
+
+  // ── Filter ───────────────────────────────────────────────────────────────
 
   const STATUS_FILTER_MAP: Record<string, ImportOrder['status'] | null> = {
     'Trạng thái: Tất cả': null,
@@ -132,10 +232,13 @@ export default function StockIn() {
   };
 
   const filteredReceipts = receipts.filter(r => {
-    const matchesSearch = r.code.toLowerCase().includes(search.toLowerCase()) || r.supplier.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = r.code.toLowerCase().includes(search.toLowerCase())
+      || r.supplier.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = !STATUS_FILTER_MAP[statusFilter] || r.status === STATUS_FILTER_MAP[statusFilter];
     return matchesSearch && matchesStatus;
   });
+
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6 flex flex-col flex-1">
@@ -210,38 +313,40 @@ export default function StockIn() {
               ) : filteredReceipts.map((r) => {
                 const totalQty = r.items.reduce((acc, item) => acc + item.quantity, 0);
                 return (
-                <tr key={r.id} onClick={() => navigate(`/stock-in/${r.id}`)} className="hover:bg-[#F1F5F9] transition-colors group cursor-pointer">
-                  <td className="py-3 px-4 font-medium text-[#0058be]">{r.code}</td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded bg-[#e5eeff] flex items-center justify-center text-[#75777d] text-[10px] font-bold">NCC</div>
-                      {r.supplier}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 font-medium">{new Date(r.import_date).toLocaleDateString('vi-VN')}</td>
-                  <td className="py-3 px-4 text-right font-medium">{totalQty.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-center">
-                    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium uppercase ${
-                      r.status === 'pending' ? 'bg-[#fed7aa] text-[#9a3412]' :
-                      r.status === 'confirmed' ? 'bg-[#bbf7d0] text-[#166534]' :
-                      'bg-[#fecaca] text-[#991b1b]'
-                    }`}>
-                      {r.status === 'pending' ? 'Chờ xử lý' : r.status === 'confirmed' ? 'Đã duyệt' : 'Đã huỷ'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-right" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {r.status === 'pending' && <button onClick={() => handleConfirm(r.id)} className="text-slate-400 hover:text-[#166534] p-1 cursor-pointer" title="Xác nhận"><CheckCircle size={18} /></button>}
-                      {r.status === 'pending' && <button onClick={() => handleCancel(r.id)} className="text-slate-400 hover:text-[#991b1b] p-1 cursor-pointer" title="Huỷ"><XCircle size={18} /></button>}
-                    </div>
-                  </td>
-                </tr>
-              )})}
+                  <tr key={r.id} onClick={() => navigate(`/stock-in/${r.id}`)} className="hover:bg-[#F1F5F9] transition-colors group cursor-pointer">
+                    <td className="py-3 px-4 font-medium text-[#0058be]">{r.code}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded bg-[#e5eeff] flex items-center justify-center text-[#75777d] text-[10px] font-bold">NCC</div>
+                        {r.supplier}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 font-medium">{new Date(r.import_date).toLocaleDateString('vi-VN')}</td>
+                    <td className="py-3 px-4 text-right font-medium">{totalQty.toLocaleString()}</td>
+                    <td className="py-3 px-4 text-center">
+                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium uppercase ${
+                        r.status === 'pending'   ? 'bg-[#fed7aa] text-[#9a3412]' :
+                        r.status === 'confirmed' ? 'bg-[#bbf7d0] text-[#166534]' :
+                        'bg-[#fecaca] text-[#991b1b]'
+                      }`}>
+                        {r.status === 'pending' ? 'Chờ xử lý' : r.status === 'confirmed' ? 'Đã duyệt' : 'Đã huỷ'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {r.status === 'pending' && <button onClick={() => handleConfirm(r.id)} className="text-slate-400 hover:text-[#166534] p-1 cursor-pointer" title="Xác nhận"><CheckCircle size={18} /></button>}
+                        {r.status === 'pending' && <button onClick={() => handleCancel(r.id)}  className="text-slate-400 hover:text-[#991b1b] p-1 cursor-pointer" title="Huỷ"><XCircle size={18} /></button>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
+      {/* Create modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -254,7 +359,6 @@ export default function StockIn() {
 
             <form onSubmit={handleCreate} noValidate className="flex flex-col flex-1 min-h-0">
               <div className="p-6 flex flex-col gap-5 overflow-y-auto flex-1">
-                {/* Thông tin phiếu */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
                     <label className="text-sm font-medium text-slate-700">Nhà cung cấp *</label>
@@ -287,7 +391,6 @@ export default function StockIn() {
                   </div>
                 </div>
 
-                {/* Danh sách sản phẩm */}
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium text-slate-700">
@@ -330,7 +433,7 @@ export default function StockIn() {
                                   className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm focus:border-[#0058be] outline-none cursor-pointer bg-white"
                                 >
                                   <option value="" disabled>Chọn sản phẩm...</option>
-                                  {MOCK_PRODUCTS.map(p => (
+                                  {products.map(p => (
                                     <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
                                   ))}
                                 </select>
@@ -374,11 +477,15 @@ export default function StockIn() {
 
               <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between shrink-0">
                 <p className="text-xs text-slate-400">
-                  {formData.items.length === 0 ? 'Có thể thêm sản phẩm sau khi tạo phiếu' : `${formData.items.length} dòng hàng · ${formData.items.reduce((s, i) => s + (parseInt(i.quantity) || 0), 0).toLocaleString()} sản phẩm`}
+                  {formData.items.length === 0
+                    ? 'Có thể thêm sản phẩm sau khi tạo phiếu'
+                    : `${formData.items.length} dòng hàng · ${formData.items.reduce((s, i) => s + (parseInt(i.quantity) || 0), 0).toLocaleString()} sản phẩm`}
                 </p>
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={closeModal} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-lg cursor-pointer">Huỷ bỏ</button>
-                  <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg cursor-pointer">Tạo phiếu nhập</button>
+                  <button type="submit" disabled={submitting} className="px-4 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg cursor-pointer disabled:opacity-60">
+                    {submitting ? 'Đang tạo...' : 'Tạo phiếu nhập'}
+                  </button>
                 </div>
               </div>
             </form>

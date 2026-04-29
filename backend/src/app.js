@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRouter from './routes/Auth.js';
 import usersRouter from './routes/Users.js';
+import importOrdersRouter from './routes/ImportOrders.js';
 import { notFound, errorHandler } from './middlewares/ErrorHandler.js';
 import { pool } from './db/Pool.js';
 import { seedAdminUser } from './db/Seed.js';
@@ -25,8 +26,9 @@ app.get('/health', (_req, res) => {
 });
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
-app.use('/api/auth',  authRouter);
-app.use('/api/users', usersRouter);
+app.use('/api/auth',           authRouter);
+app.use('/api/users',          usersRouter);
+app.use('/api/import-orders',  importOrdersRouter);
 
 app.use(notFound);
 app.use(errorHandler);
