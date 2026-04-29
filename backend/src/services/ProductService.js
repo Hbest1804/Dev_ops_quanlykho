@@ -38,7 +38,7 @@ export const ProductService = {
   },
 
   /**
-   * Tạo sản phẩm mới.
+   * Tạo sản phẩm mới.s
    * @param {object} body - { code, name, category, unit, description, initialStock }
    */
   async create({ code, name, category, unit, description, initialStock }) {
