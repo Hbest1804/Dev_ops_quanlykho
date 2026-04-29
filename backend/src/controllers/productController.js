@@ -11,11 +11,18 @@ export const ProductController = {
       const result = await ProductService.findAll(req.query);
       res.json({
         success: true,
-        message: 'OK',
-        ...result,
+        data: result,
       });
     } catch (err) {
-      next(err);
+      if (err.status) {
+        return res.status(err.status).json({
+          success: false,
+          message: err.message,
+          ...(err.status === 400 || err.status === 409 ? { data: null } : {}),
+        });
+      }
+      console.error(err);
+      res.status(500).json({ success: false, message: 'Internal server error' });
     }
   },
 
@@ -26,9 +33,17 @@ export const ProductController = {
   async getById(req, res, next) {
     try {
       const product = await ProductService.findById(req.params.id);
-      res.json({ success: true, message: 'OK', data: product });
+      res.json({ success: true, data: product });
     } catch (err) {
-      next(err);
+      if (err.status) {
+        return res.status(err.status).json({
+          success: false,
+          message: err.message,
+          ...(err.status === 400 || err.status === 409 ? { data: null } : {}),
+        });
+      }
+      console.error(err);
+      res.status(500).json({ success: false, message: 'Internal server error' });
     }
   },
 
@@ -68,7 +83,15 @@ export const ProductController = {
         },
       });
     } catch (err) {
-      next(err);
+      if (err.status) {
+        return res.status(err.status).json({
+          success: false,
+          message: err.message,
+          ...(err.status === 400 || err.status === 409 ? { data: null } : {}),
+        });
+      }
+      console.error(err);
+      res.status(500).json({ success: false, message: 'Internal server error' });
     }
   },
 };
