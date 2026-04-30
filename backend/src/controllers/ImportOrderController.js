@@ -4,9 +4,13 @@ export const ImportOrderController = {
 
   async list(req, res, next) {
     try {
-      const { status, search } = req.query;
-      const orders = await ImportOrderService.findAll({ status, search });
-      res.json({ success: true, data: orders });
+      const { status, search, from_date, to_date, page, limit } = req.query;
+      const result = await ImportOrderService.findAll({
+        status, search, from_date, to_date,
+        page:  page  ? Number(page)  : 1,
+        limit: limit ? Number(limit) : 10,
+      });
+      res.json({ success: true, data: result.data, pagination: result.pagination });
     } catch (err) { next(err); }
   },
 
