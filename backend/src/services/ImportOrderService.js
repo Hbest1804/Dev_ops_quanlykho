@@ -1,5 +1,5 @@
 import { ImportOrderRepository } from '../repositories/ImportOrderRepository.js';
-import { BadRequest, NotFound } from '../utils/AppError.js';
+import { BadRequest, NotFound, Conflict } from '../utils/AppError.js';
 
 export const ImportOrderService = {
 
@@ -50,9 +50,9 @@ export const ImportOrderService = {
 
   async cancel(id) {
     const order = await ImportOrderRepository.findById(id);
-    if (!order) throw NotFound('Phiếu nhập không tồn tại');
+    if (!order) throw NotFound('Import order not found');
     if (order.status !== 'pending')
-      throw BadRequest('Chỉ có thể huỷ phiếu đang chờ xử lý');
+      throw Conflict('Order is not in pending status');
 
     return ImportOrderRepository.cancel(id);
   },
