@@ -13,7 +13,7 @@ function attachItems(orders, items) {
 
 export const ImportOrderRepository = {
 
-  async findAll({ status, search } = {}) {
+  async findAll({ status, search, from_date, to_date, page = 1, limit = 10 } = {}) {
     const conds  = [];
     const values = [];
     let   i      = 1;
@@ -27,21 +27,41 @@ export const ImportOrderRepository = {
       values.push(`%${search}%`);
       i++;
     }
+    if (from_date) {
+      conds.push(`io.import_date >= $${i++}`);
+      values.push(from_date);
+    }
+    if (to_date) {
+      conds.push(`io.import_date <= $${i++}`);
+      values.push(to_date);
+    }
 
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+    // Đếm tổng số bản ghi (cho phân trang)
+    const { rows: [{ count }] } = await pool.query(
+      `SELECT COUNT(*) FROM import_orders io ${where}`,
+      values,
+    );
+    const total      = parseInt(count, 10);
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const offset     = (page - 1) * limit;
 
     const { rows: orders } = await pool.query(
       `SELECT io.id, io.code, io.supplier, io.status,
               io.import_date, io.note,
-              io.created_by, io.confirmed_by, io.confirmed_at,
+              io.created_by, u.name AS creator_name,
+              io.confirmed_by, io.confirmed_at,
               io.created_at, io.updated_at
          FROM import_orders io
+         LEFT JOIN users u ON u.id = io.created_by
          ${where}
-         ORDER BY io.created_at DESC`,
-      values,
+         ORDER BY io.created_at DESC
+         LIMIT $${i++} OFFSET $${i++}`,
+      [...values, limit, offset],
     );
 
-    if (orders.length === 0) return [];
+    if (orders.length === 0) return { data: [], pagination: { page, limit, total, totalPages } };
 
     const { rows: items } = await pool.query(
       `SELECT id, import_order_id, product_id, quantity, note,
@@ -52,7 +72,7 @@ export const ImportOrderRepository = {
       [orders.map(o => o.id)],
     );
 
-    return attachItems(orders, items);
+    return { data: attachItems(orders, items), pagination: { page, limit, total, totalPages } };
   },
 
   async findById(id) {

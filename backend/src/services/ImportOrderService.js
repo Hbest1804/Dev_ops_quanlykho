@@ -3,8 +3,8 @@ import { BadRequest, NotFound, Conflict } from '../utils/AppError.js';
 
 export const ImportOrderService = {
 
-  async findAll({ status, search } = {}) {
-    return ImportOrderRepository.findAll({ status, search });
+  async findAll({ status, search, from_date, to_date, page, limit } = {}) {
+    return ImportOrderRepository.findAll({ status, search, from_date, to_date, page, limit });
   },
 
   async findById(id) {
