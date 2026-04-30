@@ -10,7 +10,7 @@ export const ImportOrderController = {
         page:  page  ? Number(page)  : 1,
         limit: limit ? Number(limit) : 10,
       });
-      res.json({ success: true, data: result.data, pagination: result.pagination });
+      res.json({ success: true, data: result.data, pagination: result.pagination, statusCounts: result.statusCounts });
     } catch (err) { next(err); }
   },
 
