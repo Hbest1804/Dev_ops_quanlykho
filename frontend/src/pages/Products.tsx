@@ -28,6 +28,15 @@ export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
+
   const [categoryFilter, setCategoryFilter] = useState('Tất cả danh mục');
   const [statusFilter, setStatusFilter] = useState('Tất cả trạng thái');
 
@@ -50,7 +59,7 @@ export default function Products() {
     setLoading(true);
     try {
       const params: Record<string, string> = {};
-      if (search) params.search = search;
+      if (debouncedSearch) params.search = debouncedSearch;
       if (categoryFilter !== 'Tất cả danh mục') params.category = categoryFilter;
       // Chuyển lọc trạng thái lên server để đảm bảo phân trang chính xác
       if (statusFilter !== 'Tất cả trạng thái') params.status = statusFilter;
@@ -68,7 +77,7 @@ export default function Products() {
     } finally {
       setLoading(false);
     }
-  }, [search, categoryFilter, statusFilter]);
+  }, [debouncedSearch, categoryFilter, statusFilter]);
 
   useEffect(() => {
     fetchProducts();
