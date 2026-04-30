@@ -47,6 +47,13 @@ export const ImportOrderRepository = {
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const offset     = (page - 1) * limit;
 
+    // Đếm số lượng theo từng trạng thái (toàn bộ, không phụ thuộc filter)
+    const { rows: statusRows } = await pool.query(
+      `SELECT status, COUNT(*)::int AS count FROM import_orders GROUP BY status`,
+    );
+    const statusCounts = { pending: 0, confirmed: 0, cancelled: 0 };
+    for (const r of statusRows) statusCounts[r.status] = r.count;
+
     const { rows: orders } = await pool.query(
       `SELECT io.id, io.code, io.supplier, io.status,
               io.import_date, io.note,
@@ -61,7 +68,7 @@ export const ImportOrderRepository = {
       [...values, limit, offset],
     );
 
-    if (orders.length === 0) return { data: [], pagination: { page, limit, total, totalPages } };
+    if (orders.length === 0) return { data: [], pagination: { page, limit, total, totalPages }, statusCounts };
 
     const { rows: items } = await pool.query(
       `SELECT id, import_order_id, product_id, quantity, note,
@@ -72,7 +79,7 @@ export const ImportOrderRepository = {
       [orders.map(o => o.id)],
     );
 
-    return { data: attachItems(orders, items), pagination: { page, limit, total, totalPages } };
+    return { data: attachItems(orders, items), pagination: { page, limit, total, totalPages }, statusCounts };
   },
 
   async findById(id) {

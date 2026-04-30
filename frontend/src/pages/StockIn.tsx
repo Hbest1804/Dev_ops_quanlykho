@@ -96,14 +96,15 @@ export default function StockIn() {
   const [submitting, setSubmitting]     = useState(false);
   const [search, setSearch]             = useState('');
   const [statusFilter, setStatusFilter] = useState('Trạng thái: Tất cả');
-  const [fromDate, setFromDate]         = useState('');
-  const [toDate, setToDate]             = useState('');
-  const [page, setPage]                 = useState(1);
-  const [totalPages, setTotalPages]     = useState(1);
-  const [total, setTotal]               = useState(0);
-  const [isModalOpen, setIsModalOpen]   = useState(false);
-  const [formData, setFormData]         = useState<FormData>(EMPTY_FORM);
-  const [pickerIdx, setPickerIdx]       = useState<number | null>(null);
+  const [fromDate, setFromDate]           = useState('');
+  const [toDate, setToDate]               = useState('');
+  const [page, setPage]                   = useState(1);
+  const [totalPages, setTotalPages]       = useState(1);
+  const [total, setTotal]                 = useState(0);
+  const [statusCounts, setStatusCounts]   = useState({ pending: 0, confirmed: 0, cancelled: 0 });
+  const [isModalOpen, setIsModalOpen]     = useState(false);
+  const [formData, setFormData]           = useState<FormData>(EMPTY_FORM);
+  const [pickerIdx, setPickerIdx]         = useState<number | null>(null);
 
   // ── Fetch ────────────────────────────────────────────────────────────────
 
@@ -121,6 +122,9 @@ export default function StockIn() {
       setPage(data.pagination.page);
       setTotalPages(data.pagination.totalPages);
       setTotal(data.pagination.total);
+      if (data.statusCounts) {
+        setStatusCounts(data.statusCounts);
+      }
     } catch {
       toast.error('Không thể tải danh sách phiếu nhập');
     } finally {
@@ -244,7 +248,7 @@ export default function StockIn() {
             <div>
               <p className="text-xs font-medium text-[#45474c] mb-1">{label}</p>
               <h3 className="text-[32px] font-semibold text-[#0b1c30] leading-none">
-                {receipts.filter(r => r.status === status).length}
+                {statusCounts[status] || 0}
               </h3>
             </div>
           </div>
