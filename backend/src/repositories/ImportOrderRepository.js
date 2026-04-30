@@ -204,9 +204,9 @@ export const ImportOrderRepository = {
         [id],
       );
       if (!order)
-        throw Object.assign(new Error('Phiếu nhập không tồn tại'), { status: 404 });
+        throw Object.assign(new Error('Import order not found'), { status: 404 });
       if (order.status !== 'pending')
-        throw Object.assign(new Error('Chỉ có thể huỷ phiếu đang chờ xử lý'), { status: 400 });
+        throw Object.assign(new Error('Order is not in pending status'), { status: 409 });
 
       const { rows: [updated] } = await client.query(
         `UPDATE import_orders SET status = 'cancelled'
