@@ -83,10 +83,10 @@ export const ProductController = {
     try {
       const { name, category, unit, description } = req.body;
 
-      if (!name || !category || !unit) {
+      if (!name || !category || !unit || !description) {
         return res.status(400).json({
           success: false,
-          message: 'Thiếu trường bắt buộc: name, category, unit',
+          message: 'Thiếu trường bắt buộc: name, category, unit, description',
           data: null,
         });
       }

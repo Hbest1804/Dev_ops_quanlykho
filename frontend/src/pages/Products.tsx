@@ -119,6 +119,7 @@ export default function Products() {
     if (!formData.code.trim()) { toast.error('Vui lòng nhập mã sản phẩm'); return; }
     if (!formData.name.trim()) { toast.error('Vui lòng nhập tên sản phẩm'); return; }
     if (!formData.category) { toast.error('Vui lòng chọn danh mục'); return; }
+    if (!formData.description.trim()) { toast.error('Vui lòng nhập mô tả sản phẩm'); return; }
 
     setSaving(true);
     try {
@@ -416,13 +417,14 @@ export default function Products() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-slate-700">Mô tả</label>
+                <label className="text-sm font-medium text-slate-700">Mô tả *</label>
                 <textarea
+                  required
                   rows={3}
                   value={formData.description}
                   onChange={e => setFormData({ ...formData, description: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-[#0058be] focus:ring-1 focus:ring-[#0058be] outline-none text-sm resize-none"
-                  placeholder="Mô tả sản phẩm (tuỳ chọn)"
+                  placeholder="Nhập mô tả sản phẩm"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
