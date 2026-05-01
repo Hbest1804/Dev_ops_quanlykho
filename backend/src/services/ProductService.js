@@ -74,18 +74,18 @@ export const ProductService = {
     const parsedId = parseInt(id);
     if (isNaN(parsedId)) throw BadRequest('ID sản phẩm không hợp lệ');
 
-    if (!name || !category || !unit) {
-      throw BadRequest('name, category và unit là bắt buộc');
+    if (!name || !category || !unit || !description) {
+      throw BadRequest('name, category, unit và description là bắt buộc');
     }
 
     const existing = await ProductRepository.findById(parsedId);
-    if (!existing) throw NotFound('Sản phẩm không tồn tại');
+    if (!existing) throw NotFound('Not found');
 
     return ProductRepository.update(parsedId, {
       name: name.trim(),
       category: category.trim(),
       unit: unit.trim(),
-      description: description?.trim() ?? '',
+      description: description.trim(),
     });
   },
 
