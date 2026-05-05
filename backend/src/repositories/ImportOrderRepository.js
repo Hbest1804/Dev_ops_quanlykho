@@ -125,27 +125,43 @@ export const ImportOrderRepository = {
         [code, supplier, import_date, note || null, created_by],
       );
 
-      const insertedItems = [];
-      for (const item of items) {
-        const { rows: [p] } = await client.query(
-          'SELECT code, name, unit, category FROM products WHERE id = $1 AND is_deleted = FALSE',
-          [item.product_id],
+      let insertedItems = [];
+      if (items && items.length > 0) {
+        const productIds = items.map(item => item.product_id);
+        const { rows: products } = await client.query(
+          'SELECT id, code, name, unit, category FROM products WHERE id = ANY($1) AND is_deleted = FALSE',
+          [productIds]
         );
-        if (!p) throw Object.assign(new Error(`Sản phẩm #${item.product_id} không tồn tại`), { status: 400 });
+        
+        const productMap = new Map(products.map(p => [p.id, p]));
+        
+        const insertValues = [];
+        const flatParams = [];
+        let paramIdx = 1;
+        
+        for (const item of items) {
+          const p = productMap.get(item.product_id);
+          if (!p) throw Object.assign(new Error(`Sản phẩm #${item.product_id} không tồn tại`), { status: 400 });
 
-        const { rows: [newItem] } = await client.query(
+          insertValues.push(`($${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++})`);
+          flatParams.push(
+            order.id, item.product_id, item.quantity, item.note || null,
+            p.code, p.name, p.unit, p.category
+          );
+        }
+
+        const res = await client.query(
           `INSERT INTO import_order_items
              (import_order_id, product_id, quantity, note,
               snapshot_product_code, snapshot_product_name,
               snapshot_unit, snapshot_category)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+           VALUES ${insertValues.join(', ')}
            RETURNING id, import_order_id, product_id, quantity, note,
                      snapshot_product_code, snapshot_product_name,
                      snapshot_unit, snapshot_category`,
-          [order.id, item.product_id, item.quantity, item.note || null,
-           p.code, p.name, p.unit, p.category],
+          flatParams
         );
-        insertedItems.push(newItem);
+        insertedItems = res.rows;
       }
 
       await client.query('COMMIT');
@@ -181,24 +197,68 @@ export const ImportOrderRepository = {
         [id],
       );
 
-      for (const item of items) {
-        const { rows } = await client.query(
-          `UPDATE products SET stock = stock + $1 WHERE id = $2 RETURNING stock`,
-          [item.quantity, item.product_id],
-        );
-        if (rows.length === 0) {
-          throw Object.assign(new Error(`Sản phẩm #${item.product_id} không tồn tại hoặc đã bị xóa`), { status: 400 });
+      // Cập nhật tồn kho + ghi log hàng loạt
+      if (items && items.length > 0) {
+        const updateValues = [];
+        const updateParams = [];
+        let updateParamIdx = 1;
+
+        const aggregatedQuantities = new Map();
+        for (const item of items) {
+          aggregatedQuantities.set(
+            item.product_id,
+            (aggregatedQuantities.get(item.product_id) || 0) + item.quantity
+          );
         }
-        const [{ stock }] = rows;
+
+        for (const [productId, qty] of aggregatedQuantities.entries()) {
+          updateValues.push(`($${updateParamIdx++}::int, $${updateParamIdx++}::int)`);
+          updateParams.push(productId, qty);
+        }
+
+        const { rows: updatedProducts } = await client.query(
+          `UPDATE products p
+           SET stock = p.stock + v.quantity
+           FROM (VALUES ${updateValues.join(', ')}) AS v(id, quantity)
+           WHERE p.id = v.id
+           RETURNING p.id, p.stock`,
+          updateParams
+        );
+
+        const updatedProductMap = new Map(updatedProducts.map(p => [p.id, p]));
+
+        const insertLogsValues = [];
+        const insertLogsParams = [];
+        let logParamIdx = 1;
+        
+        const currentStockMap = new Map();
+        for (const [productId, qty] of aggregatedQuantities.entries()) {
+          const p = updatedProductMap.get(productId);
+          if (!p) {
+            throw Object.assign(new Error(`Sản phẩm #${productId} không tồn tại hoặc đã bị xóa`), { status: 400 });
+          }
+          currentStockMap.set(productId, p.stock - qty);
+        }
+
+        for (const item of items) {
+          const currentStock = currentStockMap.get(item.product_id);
+          const stockAfter = currentStock + item.quantity;
+          currentStockMap.set(item.product_id, stockAfter);
+
+          insertLogsValues.push(`($${logParamIdx++}, 'import', $${logParamIdx++}, $${logParamIdx++}, 'import_order', $${logParamIdx++}, $${logParamIdx++}, $${logParamIdx++}, $${logParamIdx++}, $${logParamIdx++})`);
+          insertLogsParams.push(
+            item.product_id, item.quantity, stockAfter, id, confirmedBy,
+            item.snapshot_product_code, item.snapshot_product_name, item.snapshot_unit
+          );
+        }
 
         await client.query(
           `INSERT INTO stock_transactions
              (product_id, type, quantity, stock_after,
               ref_type, ref_id, created_by,
               snapshot_product_code, snapshot_product_name, snapshot_unit)
-           VALUES ($1,'import',$2,$3,'import_order',$4,$5,$6,$7,$8)`,
-          [item.product_id, item.quantity, stock, id, confirmedBy,
-           item.snapshot_product_code, item.snapshot_product_name, item.snapshot_unit],
+           VALUES ${insertLogsValues.join(', ')}`,
+          insertLogsParams
         );
       }
 
