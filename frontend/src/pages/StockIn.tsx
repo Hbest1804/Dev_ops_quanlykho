@@ -177,7 +177,7 @@ export default function StockIn() {
       });
       toast.success('Đã tạo phiếu nhập mới');
       closeModal();
-      fetchOrders();
+      fetchOrders(1);
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Không thể tạo phiếu nhập';
       toast.error(translateError(msg));
@@ -196,7 +196,7 @@ export default function StockIn() {
     try {
       await api.post(`/import-orders/${id}/confirm`);
       toast.success('Đã xác nhận phiếu nhập!');
-      fetchOrders();
+      fetchOrders(1);
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? 'Xác nhận thất bại');
     }
@@ -213,7 +213,7 @@ export default function StockIn() {
     try {
       await api.post(`/import-orders/${id}/cancel`);
       toast.success('Đã huỷ phiếu nhập');
-      fetchOrders();
+      fetchOrders(page);
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? 'Hủy phiếu thất bại');
     }
