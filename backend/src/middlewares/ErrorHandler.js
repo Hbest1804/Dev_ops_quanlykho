@@ -6,7 +6,8 @@ export function errorHandler(err, req, res, next) {
   const status = err.status || 500;
   if (status === 500) console.error(err);
   res.status(status).json({
-    message: err.message || 'Internal Server Error',
+    success: false,
+    message: err.message || 'Internal server error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 }
