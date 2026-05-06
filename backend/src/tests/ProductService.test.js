@@ -147,14 +147,14 @@ describe('ProductService Unit Tests', () => {
     it('UT-PROD-CREATE-004: Thiếu trường bắt buộc (name)', async () => {
       const payload = { code: 'SP099', category: 'A', unit: 'Cái', description: 'Mô tả test' }; // name: undefined
 
-      await expect(ProductService.create(payload)).rejects.toThrowError('code, name, category, unit và description là bắt buộc');
+      await expect(ProductService.create(payload)).rejects.toThrowError('code, name, category, unit and description are required');
     });
 
     it('UT-PROD-CREATE-005: initialStock âm', async () => {
       const payload = { code: 'SP099', name: 'Test', category: 'A', unit: 'Cái', description: 'Mô tả test', initialStock: -5 };
       ProductRepository.findByCode.mockResolvedValue(null);
 
-      await expect(ProductService.create(payload)).rejects.toThrowError('initialStock phải là số nguyên không âm');
+      await expect(ProductService.create(payload)).rejects.toThrowError('initialStock must be a non-negative integer');
     });
   });
 
