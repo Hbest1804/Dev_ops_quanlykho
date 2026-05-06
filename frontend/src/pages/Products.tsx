@@ -54,6 +54,28 @@ export default function Products() {
     code: '', name: '', description: '', category: '', unit: 'Cái',
   });
 
+  // ── Helpers ───────────────────────────────────────────────────
+  const STATUS_API_MAP: Record<string, string> = {
+    'Còn Hàng':  'IN_STOCK',
+    'Sắp Hết':   'LOW_STOCK',
+    'Hết Hàng':  'OUT_OF_STOCK',
+  };
+
+  const API_ERROR_MAP: Record<string, string> = {
+    'Product not found':                                        'Sản phẩm không tồn tại',
+    'Product code already exists':                              'Mã sản phẩm đã tồn tại',
+    'Invalid product ID':                                       'ID sản phẩm không hợp lệ',
+    'code, name, category, unit and description are required':  'Vui lòng điền đầy đủ các trường bắt buộc',
+    'initialStock must be a non-negative integer':              'Tồn kho ban đầu phải là số nguyên không âm',
+    'Product has stock > 0':                                    'Sản phẩm còn tồn kho, không thể xoá',
+    'Internal server error':                                    'Lỗi máy chủ, vui lòng thử lại',
+  };
+
+  const translateError = (err: any, fallback: string): string => {
+    const msg: string = err?.response?.data?.message ?? '';
+    return API_ERROR_MAP[msg] ?? fallback;
+  };
+
   // ── Fetch danh sách sản phẩm từ API ──────────────────────────
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -61,8 +83,7 @@ export default function Products() {
       const params: Record<string, string> = {};
       if (debouncedSearch) params.search = debouncedSearch;
       if (categoryFilter !== 'Tất cả danh mục') params.category = categoryFilter;
-      // Chuyển lọc trạng thái lên server để đảm bảo phân trang chính xác
-      if (statusFilter !== 'Tất cả trạng thái') params.status = statusFilter;
+      if (statusFilter !== 'Tất cả trạng thái') params.status = STATUS_API_MAP[statusFilter];
 
       const { data } = await api.get('/products', { params });
       setProducts(data.data?.items ?? []);
@@ -73,7 +94,7 @@ export default function Products() {
         setCategories(prev => Array.from(new Set([...prev, ...cats])));
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Không thể tải danh sách sản phẩm');
+      toast.error(translateError(err, 'Không thể tải danh sách sản phẩm'));
     } finally {
       setLoading(false);
     }
@@ -147,12 +168,7 @@ export default function Products() {
       }
       closeModal();
     } catch (err: any) {
-      const msg = err?.response?.data?.message;
-      if (err?.response?.status === 409) {
-        toast.error('Mã sản phẩm đã tồn tại');
-      } else {
-        toast.error(msg ?? 'Có lỗi xảy ra, vui lòng thử lại');
-      }
+      toast.error(translateError(err, 'Có lỗi xảy ra, vui lòng thử lại'));
     } finally {
       setSaving(false);
     }
@@ -172,7 +188,7 @@ export default function Products() {
       toast.success('Đã xoá sản phẩm');
       await fetchProducts(); // reload từ DB
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Không thể xoá sản phẩm');
+      toast.error(translateError(err, 'Không thể xoá sản phẩm'));
     }
   };
 
