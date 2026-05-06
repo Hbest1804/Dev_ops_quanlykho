@@ -29,7 +29,7 @@ export const ProductService = {
    */
   async findById(id) {
     const parsedId = parseInt(id);
-    if (isNaN(parsedId)) throw BadRequest('ID sản phẩm không hợp lệ');
+    if (isNaN(parsedId)) throw BadRequest('Invalid product ID');
 
     const product = await ProductRepository.findById(parsedId);
     if (!product || product.is_deleted) throw NotFound('Product not found');
@@ -43,12 +43,12 @@ export const ProductService = {
    */
   async create({ code, name, category, unit, description, initialStock }) {
     if (!code || !name || !category || !unit || !description) {
-      throw BadRequest('code, name, category, unit và description là bắt buộc');
+      throw BadRequest('code, name, category, unit and description are required');
     }
 
     const stock = initialStock !== undefined ? parseInt(initialStock) : 0;
     if (isNaN(stock) || stock < 0) {
-      throw BadRequest('initialStock phải là số nguyên không âm');
+      throw BadRequest('initialStock must be a non-negative integer');
     }
 
     const existing = await ProductRepository.findByCode(code.trim());
@@ -72,10 +72,10 @@ export const ProductService = {
    */
   async update(id, { name, category, unit, description }) {
     const parsedId = parseInt(id);
-    if (isNaN(parsedId)) throw BadRequest('ID sản phẩm không hợp lệ');
+    if (isNaN(parsedId)) throw BadRequest('Invalid product ID');
 
     if (!name || !category || !unit || !description) {
-      throw BadRequest('name, category, unit và description là bắt buộc');
+      throw BadRequest('name, category, unit and description are required');
     }
 
     const existing = await ProductRepository.findById(parsedId);
@@ -91,7 +91,7 @@ export const ProductService = {
 
   async delete(id, userId) {
     const parsedId = parseInt(id);
-    if (isNaN(parsedId)) throw BadRequest('ID sản phẩm không hợp lệ');
+    if (isNaN(parsedId)) throw BadRequest('Invalid product ID');
 
     const product = await ProductRepository.findById(parsedId);
     if (!product) throw NotFound('Product not found');
