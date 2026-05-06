@@ -60,7 +60,19 @@ describe('ProductService Unit Tests', () => {
       expect(result.items[0].category).toBe('Thiết bị ngoại vi');
     });
 
-    it.todo('UT-PROD-GETALL-004: Không trả về sản phẩm đã soft delete — pending thêm cột is_deleted vào schema');
+    it('UT-PROD-GETALL-004: Không trả về sản phẩm đã soft delete', async () => {
+      ProductRepository.findAll.mockResolvedValue([
+        { id: 1, name: 'SP Active', is_deleted: false },
+        { id: 2, name: 'SP Deleted', is_deleted: true },
+      ]);
+      ProductRepository.count.mockResolvedValue(1);
+
+      const result = await ProductService.findAll({});
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].id).toBe(1);
+      expect(result.items).not.toContainEqual(expect.objectContaining({ is_deleted: true }));
+    });
   });
 
   describe('3.2. getById()', () => {

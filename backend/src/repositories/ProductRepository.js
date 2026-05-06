@@ -60,7 +60,7 @@ export const ProductRepository = {
 
     values.push(limit, offset);
     const { rows } = await pool.query(
-      `SELECT id, code, name, category, unit, description, stock, created_at, updated_at
+      `SELECT id, code, name, category, unit, description, stock
          FROM products
          ${where}
          ORDER BY created_at DESC
