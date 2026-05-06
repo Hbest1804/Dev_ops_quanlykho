@@ -51,12 +51,8 @@ export const ProductController = {
 
   async delete(req, res, next) {
     try {
-      const deleted = await ProductService.delete(req.params.id);
-      res.json({
-        success: true,
-        message: 'Product deleted',
-        data: { id: deleted.id, code: deleted.code },
-      });
+      await ProductService.delete(req.params.id, req.user.sub);
+      res.json({ success: true, message: 'Product deleted', data: null });
     } catch (err) {
       next(err);
     }
