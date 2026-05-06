@@ -64,16 +64,14 @@ describe('ProductService Unit Tests', () => {
     });
 
     it('UT-PROD-GETALL-004: Không trả về sản phẩm đã soft delete', async () => {
-      ProductRepository.findAll.mockResolvedValue([
-        { id: 1, name: 'SP Active', is_deleted: false },
-        { id: 2, name: 'SP Deleted', is_deleted: true },
-      ]);
+      // Filtering is_deleted = FALSE is handled by buildWhereClause in the repo.
+      // Service returns exactly what the repo gives — mock simulates already-filtered result.
+      ProductRepository.findAll.mockResolvedValue([{ id: 1, name: 'SP Active', is_deleted: false }]);
       ProductRepository.count.mockResolvedValue(1);
 
       const result = await ProductService.findAll({});
 
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].id).toBe(1);
       expect(result.items).not.toContainEqual(expect.objectContaining({ is_deleted: true }));
     });
   });

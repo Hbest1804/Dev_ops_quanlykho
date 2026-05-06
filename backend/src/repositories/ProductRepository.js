@@ -10,7 +10,7 @@ import { pool } from '../db/Pool.js';
  *   'Hết Hàng'  → stock = 0
  */
 function buildWhereClause({ search, category, status }) {
-  const conditions = [];
+  const conditions = ['is_deleted = FALSE'];
   const values = [];
   let i = 1;
 
@@ -60,7 +60,7 @@ export const ProductRepository = {
 
     values.push(limit, offset);
     const { rows } = await pool.query(
-      `SELECT id, code, name, category, unit, description, stock
+      `SELECT id, code, name, category, unit, description, stock, created_at, updated_at
          FROM products
          ${where}
          ORDER BY created_at DESC
