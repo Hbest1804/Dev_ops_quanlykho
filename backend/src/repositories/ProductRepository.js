@@ -75,7 +75,7 @@ export const ProductRepository = {
    */
   async findById(id) {
     const { rows } = await pool.query(
-      `SELECT id, code, name, category, unit, description, stock, created_at, updated_at
+      `SELECT id, code, name, category, unit, description, stock, is_deleted, created_at, updated_at
          FROM products WHERE id = $1`,
       [id]
     );
