@@ -11,14 +11,14 @@ import api from '../lib/api';
 
 type Product = {
   id: number;
-  code: string;   // mã SP từ backend
+  code: string;
   name: string;
   description: string;
   category: string;
   unit: string;
-  stock: number;  // tồn kho từ backend
-  created_at: string;
-  updated_at: string;
+  stock: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export default function Products() {
@@ -86,7 +86,12 @@ export default function Products() {
       if (statusFilter !== 'Tất cả trạng thái') params.status = STATUS_API_MAP[statusFilter];
 
       const { data } = await api.get('/products', { params });
-      setProducts(data.data?.items ?? []);
+      const items = (data.data?.items ?? []).map((p: any) => ({
+        ...p,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+      }));
+      setProducts(items);
 
       // Tự động cập nhật danh sách category từ dữ liệu thực
       if (data.data?.items?.length) {
@@ -355,11 +360,11 @@ export default function Products() {
               <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                 <div>
                   <p className="text-xs text-slate-500 mb-1">Ngày tạo</p>
-                  <p className="text-sm text-slate-700">{new Date(selectedProduct.created_at).toLocaleString('vi-VN')}</p>
+                  <p className="text-sm text-slate-700">{new Date(selectedProduct.createdAt).toLocaleString('vi-VN')}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 mb-1">Cập nhật lần cuối</p>
-                  <p className="text-sm text-slate-700">{new Date(selectedProduct.updated_at).toLocaleString('vi-VN')}</p>
+                  <p className="text-sm text-slate-700">{new Date(selectedProduct.updatedAt).toLocaleString('vi-VN')}</p>
                 </div>
               </div>
             </div>
