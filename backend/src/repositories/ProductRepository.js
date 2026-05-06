@@ -25,11 +25,11 @@ function buildWhereClause({ search, category, status }) {
     i++;
   }
   if (status) {
-    if (status === 'Còn Hàng') {
+    if (status === 'IN_STOCK') {
       conditions.push(`stock > 20`);
-    } else if (status === 'Sắp Hết') {
+    } else if (status === 'LOW_STOCK') {
       conditions.push(`stock > 0 AND stock <= 20`);
-    } else if (status === 'Hết Hàng') {
+    } else if (status === 'OUT_OF_STOCK') {
       conditions.push(`stock = 0`);
     }
   }
