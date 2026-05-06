@@ -32,7 +32,7 @@ export const ProductService = {
     if (isNaN(parsedId)) throw BadRequest('ID sản phẩm không hợp lệ');
 
     const product = await ProductRepository.findById(parsedId);
-    if (!product) throw NotFound('Not found');
+    if (!product || product.is_deleted) throw NotFound('Product not found');
 
     return product;
   },

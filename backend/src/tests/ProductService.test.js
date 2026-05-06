@@ -59,22 +59,15 @@ describe('ProductService Unit Tests', () => {
       expect(result.items[0].category).toBe('Thiết bị ngoại vi');
     });
 
-    it('UT-PROD-GETALL-004: Không trả về sản phẩm đã soft delete', async () => {
-      // Trong môi trường thực tế, repo.findAll() sẽ đảm nhận việc lọc is_deleted = false
-      // Service chỉ gọi và trả về kết quả
-      ProductRepository.findAll.mockResolvedValue([{ id: 1, name: 'SP 1' }]);
-      ProductRepository.count.mockResolvedValue(1);
-
-      const result = await ProductService.findAll({});
-
-      // Kiểm tra items không chứa SP deleted bằng cách mock dữ liệu hợp lệ
-      expect(result.items).not.toContainEqual(expect.objectContaining({ is_deleted: true }));
-    });
+    it.todo('UT-PROD-GETALL-004: Không trả về sản phẩm đã soft delete — pending thêm cột is_deleted vào schema');
   });
 
   describe('3.2. getById()', () => {
     it('UT-PROD-GETBYID-001: Lấy sp tồn tại', async () => {
-      const mockProduct = { id: 1, name: 'Product 1' };
+      const mockProduct = {
+        id: 1, code: 'SP001', name: 'Bàn phím cơ', category: 'Thiết bị ngoại vi',
+        unit: 'Cái', stock: 50, description: 'Mô tả', created_at: new Date('2025-01-01'),
+      };
       ProductRepository.findById.mockResolvedValue(mockProduct);
 
       const result = await ProductService.findById(1);
@@ -86,17 +79,14 @@ describe('ProductService Unit Tests', () => {
     it('UT-PROD-GETBYID-002: Sp không tồn tại', async () => {
       ProductRepository.findById.mockResolvedValue(null);
 
-      await expect(ProductService.findById(9999)).rejects.toThrowError('Not found');
+      await expect(ProductService.findById(9999)).rejects.toThrowError('Product not found');
     });
 
-    it('UT-PROD-GETBYID-003: Service chưa filter is_deleted — trả về product bình thường', async () => {
-      // Service hiện tại không kiểm tra is_deleted, repo trả gì thì trả lại đó.
-      // Khi Service được nâng cấp để filter is_deleted, test này cần đổi thành rejects.
+    it('UT-PROD-GETBYID-003: Sp đã soft delete', async () => {
       const deletedProduct = { id: 2, name: 'SP Deleted', is_deleted: true };
       ProductRepository.findById.mockResolvedValue(deletedProduct);
 
-      const result = await ProductService.findById(2);
-      expect(result).toEqual(deletedProduct);
+      await expect(ProductService.findById(2)).rejects.toThrowError('Product not found');
     });
   });
 
@@ -110,7 +100,9 @@ describe('ProductService Unit Tests', () => {
 
       const result = await ProductService.create(payload);
 
-      expect(ProductRepository.create).toHaveBeenCalled();
+      expect(ProductRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 'SP099', initialStock: 0 })
+      );
       expect(result).toEqual(createdProduct);
     });
 
