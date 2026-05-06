@@ -17,7 +17,7 @@ export const ProductService = {
     ]);
 
     return {
-      items: products,
+      items: products.filter(p => !p.is_deleted),
       total: parseInt(total, 10),
       page,
       limit,
