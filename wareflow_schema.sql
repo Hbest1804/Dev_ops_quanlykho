@@ -54,6 +54,9 @@ CREATE TABLE products (
     unit        VARCHAR(50)     NOT NULL,
     description TEXT,
     stock       INTEGER         NOT NULL DEFAULT 0 CHECK (stock >= 0),
+    is_deleted  BOOLEAN         NOT NULL DEFAULT FALSE,
+    deleted_at  TIMESTAMP,
+    deleted_by  INTEGER         REFERENCES users(id),
     created_at  TIMESTAMP       NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMP       NOT NULL DEFAULT NOW()
 );

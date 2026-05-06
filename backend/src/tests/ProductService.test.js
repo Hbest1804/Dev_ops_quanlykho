@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProductService } from '../services/ProductService.js';
 import { ProductRepository } from '../repositories/ProductRepository.js';
-import { BadRequest, Conflict, NotFound } from '../utils/AppError.js';
+import { BadRequest, Conflict, NotFound, UnprocessableEntity } from '../utils/AppError.js';
 
 // Mock dependencies
 vi.mock('../repositories/ProductRepository.js', () => ({
@@ -12,6 +12,9 @@ vi.mock('../repositories/ProductRepository.js', () => ({
     findByCode: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    countTransactions: vi.fn(),
+    softDelete: vi.fn(),
+    hardDelete: vi.fn(),
   }
 }));
 
@@ -185,6 +188,49 @@ describe('ProductService Unit Tests', () => {
         1,
         expect.not.objectContaining({ stock: expect.anything() })
       );
+    });
+  });
+
+  describe('3.5. delete()', () => {
+    it('UT-PROD-DEL-001: Hard delete — chưa có giao dịch, stock=0', async () => {
+      ProductRepository.findById.mockResolvedValue({ id: 1, stock: 0 });
+      ProductRepository.countTransactions.mockResolvedValue(0);
+      ProductRepository.hardDelete.mockResolvedValue({ id: 1, code: 'SP001' });
+
+      const result = await ProductService.delete(1, 99);
+
+      expect(ProductRepository.hardDelete).toHaveBeenCalledWith(1);
+      expect(ProductRepository.softDelete).not.toHaveBeenCalled();
+      expect(result).toEqual({ deleted: true, type: 'hard' });
+    });
+
+    it('UT-PROD-DEL-002: Soft delete — đã có giao dịch', async () => {
+      ProductRepository.findById.mockResolvedValue({ id: 1, stock: 0 });
+      ProductRepository.countTransactions.mockResolvedValue(5);
+      ProductRepository.softDelete.mockResolvedValue({ id: 1, code: 'SP001' });
+
+      const result = await ProductService.delete(1, 99);
+
+      expect(ProductRepository.softDelete).toHaveBeenCalledWith(1, 99);
+      expect(ProductRepository.hardDelete).not.toHaveBeenCalled();
+      expect(result).toEqual({ deleted: true, type: 'soft' });
+    });
+
+    it('UT-PROD-DEL-003: Soft delete — có giao dịch và stock > 0', async () => {
+      ProductRepository.findById.mockResolvedValue({ id: 1, stock: 20 });
+      ProductRepository.countTransactions.mockResolvedValue(3);
+      ProductRepository.softDelete.mockResolvedValue({ id: 1, code: 'SP001' });
+
+      const result = await ProductService.delete(1, 99);
+
+      expect(ProductRepository.softDelete).toHaveBeenCalledWith(1, 99);
+      expect(result).toEqual({ deleted: true, type: 'soft' });
+    });
+
+    it('UT-PROD-DEL-004: Sp không tồn tại', async () => {
+      ProductRepository.findById.mockResolvedValue(null);
+
+      await expect(ProductService.delete(9999, 99)).rejects.toThrowError('Product not found');
     });
   });
 });

@@ -1,5 +1,5 @@
 import { ProductRepository } from '../repositories/ProductRepository.js';
-import { BadRequest, Conflict, NotFound } from '../utils/AppError.js';
+import { BadRequest, Conflict, NotFound, UnprocessableEntity } from '../utils/AppError.js';
 
 export const ProductService = {
   /**
@@ -89,16 +89,25 @@ export const ProductService = {
     });
   },
 
-  /**
-   * Xoá sản phẩm theo ID.
-   */
-  async delete(id) {
+  async delete(id, userId) {
     const parsedId = parseInt(id);
     if (isNaN(parsedId)) throw BadRequest('ID sản phẩm không hợp lệ');
 
-    const deleted = await ProductRepository.delete(parsedId);
-    if (!deleted) throw NotFound('Sản phẩm không tồn tại');
+    const product = await ProductRepository.findById(parsedId);
+    if (!product) throw NotFound('Product not found');
 
-    return deleted;
+    const transactionCount = await ProductRepository.countTransactions(parsedId);
+
+    if (transactionCount > 0) {
+      await ProductRepository.softDelete(parsedId, userId);
+      return { deleted: true, type: 'soft' };
+    }
+
+    if (product.stock > 0) {
+      throw UnprocessableEntity('Product has stock > 0');
+    }
+
+    await ProductRepository.hardDelete(parsedId);
+    return { deleted: true, type: 'hard' };
   },
 };

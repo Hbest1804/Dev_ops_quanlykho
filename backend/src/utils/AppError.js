@@ -9,4 +9,5 @@ export const BadRequest  = (msg) => new AppError(msg, 400);
 export const Unauthorized= (msg) => new AppError(msg, 401);
 export const Forbidden   = (msg) => new AppError(msg, 403);
 export const NotFound    = (msg) => new AppError(msg, 404);
-export const Conflict    = (msg) => new AppError(msg, 409);
+export const Conflict             = (msg) => new AppError(msg, 409);
+export const UnprocessableEntity  = (msg) => new AppError(msg, 422);

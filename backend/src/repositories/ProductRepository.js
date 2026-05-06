@@ -125,15 +125,29 @@ export const ProductRepository = {
     return rows[0] ?? null;
   },
 
-  /**
-   * Xoá sản phẩm theo ID.
-   * Trả về bản ghi đã xoá, hoặc null nếu không tìm thấy.
-   */
-  async delete(id) {
+  async countTransactions(productId) {
     const { rows } = await pool.query(
-      `DELETE FROM products WHERE id = $1
-         RETURNING id, code, name`,
+      'SELECT COUNT(*)::int AS total FROM stock_transactions WHERE product_id = $1',
+      [productId]
+    );
+    return rows[0].total;
+  },
+
+  async hardDelete(id) {
+    const { rows } = await pool.query(
+      `DELETE FROM products WHERE id = $1 RETURNING id, code`,
       [id]
+    );
+    return rows[0] ?? null;
+  },
+
+  async softDelete(id, userId) {
+    const { rows } = await pool.query(
+      `UPDATE products
+          SET is_deleted = TRUE, deleted_at = NOW(), deleted_by = $1
+        WHERE id = $2
+        RETURNING id, code`,
+      [userId, id]
     );
     return rows[0] ?? null;
   },
