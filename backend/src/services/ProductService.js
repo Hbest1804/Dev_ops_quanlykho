@@ -79,7 +79,7 @@ export const ProductService = {
     }
 
     const existing = await ProductRepository.findById(parsedId);
-    if (!existing) throw NotFound('Not found');
+    if (!existing) throw NotFound('Product not found');
 
     return ProductRepository.update(parsedId, {
       name: name.trim(),

@@ -11,6 +11,7 @@ vi.mock('../repositories/ProductRepository.js', () => ({
     findById: vi.fn(),
     findByCode: vi.fn(),
     create: vi.fn(),
+    update: vi.fn(),
   }
 }));
 
@@ -139,6 +140,39 @@ describe('ProductService Unit Tests', () => {
       ProductRepository.findByCode.mockResolvedValue(null);
 
       await expect(ProductService.create(payload)).rejects.toThrowError('initialStock phải là số nguyên không âm');
+    });
+  });
+
+  describe('3.4. update()', () => {
+    const validPayload = { name: 'Tên mới', category: 'Danh mục', unit: 'Cái', description: 'Mô tả' };
+
+    it('UT-PROD-UPDATE-001: Cập nhật thành công', async () => {
+      const updatedProduct = { id: 1, code: 'SP001', stock: 50, ...validPayload };
+      ProductRepository.findById.mockResolvedValue({ id: 1 });
+      ProductRepository.update.mockResolvedValue(updatedProduct);
+
+      const result = await ProductService.update(1, validPayload);
+
+      expect(ProductRepository.update).toHaveBeenCalledWith(1, expect.objectContaining(validPayload));
+      expect(result).toEqual(updatedProduct);
+    });
+
+    it('UT-PROD-UPDATE-002: Sp không tồn tại', async () => {
+      ProductRepository.findById.mockResolvedValue(null);
+
+      await expect(ProductService.update(9999, validPayload)).rejects.toThrowError('Product not found');
+    });
+
+    it('UT-PROD-UPDATE-003: Field stock bị ignore', async () => {
+      ProductRepository.findById.mockResolvedValue({ id: 1 });
+      ProductRepository.update.mockResolvedValue({ id: 1, ...validPayload, stock: 50 });
+
+      await ProductService.update(1, { ...validPayload, stock: 9999 });
+
+      expect(ProductRepository.update).toHaveBeenCalledWith(
+        1,
+        expect.not.objectContaining({ stock: expect.anything() })
+      );
     });
   });
 });
