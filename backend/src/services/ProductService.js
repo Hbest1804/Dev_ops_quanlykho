@@ -94,7 +94,7 @@ export const ProductService = {
     if (isNaN(parsedId)) throw BadRequest('Invalid product ID');
 
     const product = await ProductRepository.findById(parsedId);
-    if (!product) throw NotFound('Product not found');
+    if (!product || product.is_deleted) throw NotFound('Product not found');
 
     const transactionCount = await ProductRepository.countTransactions(parsedId);
 
