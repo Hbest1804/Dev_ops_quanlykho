@@ -48,14 +48,20 @@ const STATUS_FILTER_MAP: Record<string, ExportOrder['status'] | null> = {
 };
 
 const API_ERROR_MAP: Record<string, string> = {
-  'Export date is required': 'Vui lòng chọn ngày xuất hàng',
-  'Items must not be empty': 'Danh sách sản phẩm không được rỗng',
-  'Quantity must be a positive integer': 'Số lượng phải là số nguyên dương',
   'Reason must be sale|internal|damaged': 'Lý do xuất không hợp lệ',
+  'Export date is required': 'Vui lòng chọn ngày xuất hàng',
+  'Export date is invalid': 'Ngày xuất hàng không hợp lệ',
+  'Items must not be empty': 'Danh sách sản phẩm không được rỗng',
+  'Product ID is required for each item': 'Thiếu sản phẩm ở một hoặc nhiều dòng hàng',
+  'Quantity must be a positive integer': 'Số lượng phải là số nguyên dương',
+  'Duplicate product IDs are not allowed': 'Danh sách chứa sản phẩm trùng lặp',
 };
 
+const INSUFFICIENT_STOCK_RE = /^Insufficient stock for product (.+) \(available: (\d+), requested: (\d+)\)$/;
+
 function translateError(msg: string): string {
-  if (msg.startsWith('Insufficient stock')) return msg;
+  const m = msg.match(INSUFFICIENT_STOCK_RE);
+  if (m) return `Không đủ tồn kho cho sản phẩm ${m[1]} (tồn kho: ${m[2]}, yêu cầu: ${m[3]})`;
   return API_ERROR_MAP[msg] ?? msg;
 }
 
