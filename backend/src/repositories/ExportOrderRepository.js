@@ -29,7 +29,7 @@ export const ExportOrderRepository = {
   async updateStatus(id, status, confirmedBy, client = pool) {
     const { rows } = await client.query(
       `UPDATE export_orders
-       SET status = $1, confirmed_by = $2, confirmed_at = NOW()
+       SET status = $1, confirmed_by = $2, confirmed_at = NOW(), updated_at = NOW()
        WHERE id = $3 AND status = 'pending'
        RETURNING *`,
       [status, confirmedBy, id]

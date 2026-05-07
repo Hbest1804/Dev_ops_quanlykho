@@ -55,26 +55,32 @@ export const ExportOrderService = {
       if (!items || items.length === 0)
         throw BadRequest('Export order has no items');
 
-      const productIds = items.map(i => i.product_id);
+      const productIds = [...new Set(items.map(i => i.product_id))].sort((a, b) => a - b);
       const products = await ProductRepository.findManyByIdsForUpdate(productIds, client);
       const productMap = new Map(products.map(p => [p.id, p]));
 
-      const stockUpdates = [];
+      const runningStock = new Map(products.map(p => [p.id, p.stock]));
+      const stockUpdateMap = new Map();
       const transactions = [];
 
       for (const item of items) {
         const product = productMap.get(item.product_id);
         if (!product)
-          throw NotFound(`Product not found or deleted`);
-        if (product.stock < item.quantity)
+          throw NotFound('Product not found or deleted');
+
+        const currentStock = runningStock.get(product.id);
+        if (currentStock < item.quantity)
           throw UnprocessableEntity('Insufficient stock at confirmation time');
 
-        stockUpdates.push({ id: product.id, change: -item.quantity });
+        const stockAfter = currentStock - item.quantity;
+        runningStock.set(product.id, stockAfter);
+        stockUpdateMap.set(product.id, (stockUpdateMap.get(product.id) ?? 0) - item.quantity);
+
         transactions.push({
           productId:           product.id,
           type:                'export',
           quantity:            -item.quantity,
-          stockAfter:          product.stock - item.quantity,
+          stockAfter,
           refType:             'export_order',
           refId:               order.id,
           snapshotProductCode: item.snapshot_product_code,
@@ -84,6 +90,7 @@ export const ExportOrderService = {
         });
       }
 
+      const stockUpdates = Array.from(stockUpdateMap.entries()).map(([id, change]) => ({ id, change }));
       await ProductRepository.updateMultipleStocks(stockUpdates, client);
       await StockTransactionRepository.createMany(transactions, client);
 
