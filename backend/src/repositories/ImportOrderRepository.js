@@ -305,15 +305,15 @@ export const ImportOrderRepository = {
         [id],
       );
 
-      await client.query('COMMIT');
-
-      const { rows: items } = await pool.query(
+      const { rows: items } = await client.query(
         `SELECT id, import_order_id, product_id, quantity, note,
                 snapshot_product_code, snapshot_product_name,
                 snapshot_unit, snapshot_category
            FROM import_order_items WHERE import_order_id = $1`,
         [id],
       );
+
+      await client.query('COMMIT');
       return { ...updated, items };
     } catch (err) {
       await client.query('ROLLBACK');
