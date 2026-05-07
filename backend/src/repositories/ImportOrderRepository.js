@@ -27,7 +27,7 @@ export const ImportOrderRepository = {
             snapshot_product_code, snapshot_product_name, snapshot_unit, snapshot_category)
          SELECT $1, p.id, v.quantity, v.note, p.code, p.name, p.unit, p.category
          FROM unnest($2::int[], $3::int[], $4::text[]) AS v(product_id, quantity, note)
-         JOIN products p ON p.id = v.product_id`,
+         JOIN products p ON p.id = v.product_id AND p.is_deleted = FALSE`,
         [order.id, productIds, quantities, notes]
       );
       if (rowCount !== items.length) {
