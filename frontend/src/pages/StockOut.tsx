@@ -55,6 +55,11 @@ const API_ERROR_MAP: Record<string, string> = {
   'Product ID is required for each item': 'Thiếu sản phẩm ở một hoặc nhiều dòng hàng',
   'Quantity must be a positive integer': 'Số lượng phải là số nguyên dương',
   'Duplicate product IDs are not allowed': 'Danh sách chứa sản phẩm trùng lặp',
+  'Export order not found': 'Không tìm thấy phiếu xuất',
+  'Order is not in pending status': 'Phiếu không ở trạng thái chờ xác nhận',
+  'Insufficient stock at confirmation time': 'Tồn kho không đủ tại thời điểm xác nhận',
+  'Export order has no items': 'Phiếu xuất không có sản phẩm nào',
+  'Product not found or deleted': 'Sản phẩm không tồn tại hoặc đã bị xóa',
 };
 
 const INSUFFICIENT_STOCK_RE = /^Insufficient stock for product (.+) \(available: (\d+), requested: (\d+)\)$/;
@@ -99,8 +104,14 @@ export default function StockOut() {
 
   const handleConfirm = async (id: number) => {
     if (!await confirm({ title: 'Xác nhận phiếu xuất', message: 'Tồn kho sẽ được cập nhật sau khi xác nhận.', confirmLabel: 'Xác nhận', variant: 'primary' })) return;
-    setOrders(orders.map(o => o.id === id ? { ...o, status: 'confirmed' as const, confirmed_by: 1, confirmed_at: new Date().toISOString(), updated_at: new Date().toISOString() } : o));
-    toast.success('Đã xác nhận phiếu xuất!');
+    try {
+      const { data } = await api.put(`/export-orders/${id}/confirm`);
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, ...data.data, items: o.items } : o));
+      toast.success('Đã xác nhận phiếu xuất!');
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Không thể xác nhận phiếu xuất';
+      toast.error(translateError(msg));
+    }
   };
 
   const handleCancel = async (id: number) => {

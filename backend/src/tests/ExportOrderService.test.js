@@ -8,7 +8,7 @@ import { pool } from '../db/Pool.js';
 vi.mock('../repositories/ExportOrderRepository.js', () => ({
   ExportOrderRepository: {
     createWithItems:       vi.fn(),
-    findById:              vi.fn(),
+    findByIdForUpdate:     vi.fn(),
     findItemsByOrderId:    vi.fn(),
     updateStatus:          vi.fn(),
   },
@@ -158,7 +158,7 @@ describe('ExportOrderService Unit Tests', () => {
         { id: 20, name: 'Prod 2', stock: 20 },
       ];
 
-      ExportOrderRepository.findById.mockResolvedValue(mockOrder({ id: 1 }));
+      ExportOrderRepository.findByIdForUpdate.mockResolvedValue(mockOrder({ id: 1 }));
       ExportOrderRepository.findItemsByOrderId.mockResolvedValue(mockItems);
       ProductRepository.findManyByIdsForUpdate.mockResolvedValue(mockProducts);
       ProductRepository.updateMultipleStocks.mockResolvedValue([]);
@@ -179,7 +179,7 @@ describe('ExportOrderService Unit Tests', () => {
     });
 
     it('UT-EXP-CONFIRM-002: Tồn kho không đủ tại thời điểm confirm → 422, ROLLBACK', async () => {
-      ExportOrderRepository.findById.mockResolvedValue(mockOrder({ id: 1 }));
+      ExportOrderRepository.findByIdForUpdate.mockResolvedValue(mockOrder({ id: 1 }));
       ExportOrderRepository.findItemsByOrderId.mockResolvedValue([
         { product_id: 10, quantity: 100, snapshot_product_code: 'P1', snapshot_product_name: 'Prod 1', snapshot_unit: 'Cái' },
       ]);
@@ -194,7 +194,7 @@ describe('ExportOrderService Unit Tests', () => {
     });
 
     it('UT-EXP-CONFIRM-003: Phiếu đã confirmed → 409', async () => {
-      ExportOrderRepository.findById.mockResolvedValue(mockOrder({ id: 1, status: 'confirmed' }));
+      ExportOrderRepository.findByIdForUpdate.mockResolvedValue(mockOrder({ id: 1, status: 'confirmed' }));
 
       await expect(ExportOrderService.confirmExportOrder(1, 1))
         .rejects.toMatchObject({ status: 409, message: 'Order is not in pending status' });
@@ -203,14 +203,14 @@ describe('ExportOrderService Unit Tests', () => {
     });
 
     it('UT-EXP-CONFIRM-004: Phiếu không tồn tại → 404', async () => {
-      ExportOrderRepository.findById.mockResolvedValue(null);
+      ExportOrderRepository.findByIdForUpdate.mockResolvedValue(null);
 
       await expect(ExportOrderService.confirmExportOrder(1, 1))
         .rejects.toMatchObject({ status: 404, message: 'Export order not found' });
     });
 
     it('UT-EXP-CONFIRM-005: Tồn kho đúng bằng số lượng xuất → thành công, stock = 0', async () => {
-      ExportOrderRepository.findById.mockResolvedValue(mockOrder({ id: 1 }));
+      ExportOrderRepository.findByIdForUpdate.mockResolvedValue(mockOrder({ id: 1 }));
       ExportOrderRepository.findItemsByOrderId.mockResolvedValue([
         { product_id: 10, quantity: 5, snapshot_product_code: 'P1', snapshot_product_name: 'Prod 1', snapshot_unit: 'Cái' },
       ]);

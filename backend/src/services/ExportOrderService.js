@@ -46,14 +46,14 @@ export const ExportOrderService = {
     try {
       await client.query('BEGIN');
 
-      const order = await ExportOrderRepository.findById(id, client);
+      const order = await ExportOrderRepository.findByIdForUpdate(id, client);
       if (!order) throw NotFound('Export order not found');
       if (order.status !== 'pending')
         throw Conflict('Order is not in pending status');
 
       const items = await ExportOrderRepository.findItemsByOrderId(id, client);
       if (!items || items.length === 0)
-        throw BadRequest('Phiếu xuất không có sản phẩm nào');
+        throw BadRequest('Export order has no items');
 
       const productIds = items.map(i => i.product_id);
       const products = await ProductRepository.findManyByIdsForUpdate(productIds, client);
@@ -65,7 +65,7 @@ export const ExportOrderService = {
       for (const item of items) {
         const product = productMap.get(item.product_id);
         if (!product)
-          throw BadRequest(`Sản phẩm (ID: ${item.product_id}) không tồn tại`);
+          throw NotFound(`Product not found or deleted`);
         if (product.stock < item.quantity)
           throw UnprocessableEntity('Insufficient stock at confirmation time');
 
