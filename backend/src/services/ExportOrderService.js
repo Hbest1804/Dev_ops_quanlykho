@@ -95,6 +95,7 @@ export const ExportOrderService = {
       await StockTransactionRepository.createMany(transactions, client);
 
       const confirmedOrder = await ExportOrderRepository.updateStatus(id, 'confirmed', userId, client);
+      if (!confirmedOrder) throw Conflict('Order is not in pending status');
       await client.query('COMMIT');
       return confirmedOrder;
     } catch (error) {
