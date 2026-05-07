@@ -21,21 +21,23 @@ export const ExportOrderRepository = {
       const quantities = items.map(i => i.quantity);
       const notes      = items.map(i => i.note ?? null);
 
-      const { rowCount } = await client.query(
+      const { rows: itemRows } = await client.query(
         `INSERT INTO export_order_items
            (export_order_id, product_id, quantity, note,
             snapshot_product_code, snapshot_product_name, snapshot_unit, snapshot_category)
          SELECT $1, p.id, v.quantity, v.note, p.code, p.name, p.unit, p.category
          FROM unnest($2::int[], $3::int[], $4::text[]) AS v(product_id, quantity, note)
-         JOIN products p ON p.id = v.product_id AND p.is_deleted = FALSE`,
+         JOIN products p ON p.id = v.product_id AND p.is_deleted = FALSE
+         RETURNING id, export_order_id, product_id, quantity, note,
+                   snapshot_product_code, snapshot_product_name, snapshot_unit, snapshot_category`,
         [order.id, productIds, quantities, notes]
       );
-      if (rowCount !== items.length) {
+      if (itemRows.length !== items.length) {
         throw new Error('One or more products not found or deleted');
       }
 
       await client.query('COMMIT');
-      return order;
+      return { ...order, items: itemRows };
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;

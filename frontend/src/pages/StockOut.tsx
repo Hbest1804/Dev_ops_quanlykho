@@ -124,21 +124,7 @@ export default function StockOut() {
           note: item.note.trim() || null,
         })),
       });
-      const newOrder: ExportOrder = {
-        ...data.data,
-        items: formData.items.map((item, idx) => ({
-          id: Date.now() + idx,
-          export_order_id: data.data.id,
-          product_id: item.product!.id,
-          quantity: parseInt(item.quantity),
-          note: item.note.trim() || '',
-          snapshot_product_code: item.product!.code,
-          snapshot_product_name: item.product!.name,
-          snapshot_unit: item.product!.unit,
-          snapshot_category: item.product!.category,
-        })),
-      };
-      setOrders(prev => [newOrder, ...prev]);
+      setOrders(prev => [data.data, ...prev]);
       toast.success('Đã tạo phiếu xuất mới');
       closeModal();
     } catch (err: any) {

@@ -11,32 +11,31 @@ export const ExportOrderService = {
     if (isNaN(new Date(exportDate).getTime())) throw BadRequest('Export date is invalid');
     if (!items || items.length === 0) throw BadRequest('Items must not be empty');
 
+    const productIds = [];
+    const repoItems = [];
     for (const item of items) {
       if (item.productId == null) throw BadRequest('Product ID is required for each item');
       const qty = Number(item.quantity);
       if (!Number.isInteger(qty) || qty <= 0) throw BadRequest('Quantity must be a positive integer');
+      productIds.push(item.productId);
+      repoItems.push({ productId: item.productId, quantity: qty, note: item.note ?? null });
     }
 
-    const productIds = items.map(i => i.productId);
     if (new Set(productIds).size !== productIds.length) throw BadRequest('Duplicate product IDs are not allowed');
 
     const found = await ProductRepository.findByIdsWithStock(productIds);
     const productMap = new Map(found.filter(p => !p.is_deleted).map(p => [p.id, p]));
 
-    for (const item of items) {
+    for (const item of repoItems) {
       const product = productMap.get(item.productId);
       if (!product) throw NotFound(`Product ${item.productId} not found`);
-      const qty = Number(item.quantity);
-      if (product.stock < qty) {
+      if (product.stock < item.quantity) {
         throw UnprocessableEntity(
-          `Insufficient stock for product ${product.code} (available: ${product.stock}, requested: ${qty})`
+          `Insufficient stock for product ${product.code} (available: ${product.stock}, requested: ${item.quantity})`
         );
       }
     }
 
-    return ExportOrderRepository.createWithItems(
-      { reason, exportDate, note, userId },
-      items.map(i => ({ productId: i.productId, quantity: Number(i.quantity), note: i.note ?? null }))
-    );
+    return ExportOrderRepository.createWithItems({ reason, exportDate, note, userId }, repoItems);
   },
 };
