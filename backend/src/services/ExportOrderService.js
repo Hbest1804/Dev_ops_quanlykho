@@ -42,13 +42,12 @@ export const ExportOrderService = {
   },
 
   async cancelExportOrder(id, userId) {
+    const cancelled = await ExportOrderRepository.cancel(id, userId);
+    if (cancelled) return cancelled;
+
     const order = await ExportOrderRepository.findById(id);
     if (!order) throw NotFound('Export order not found');
-    if (order.status !== 'pending') throw Conflict('Order is not in pending status');
-
-    const cancelled = await ExportOrderRepository.cancel(id, userId);
-    if (!cancelled) throw Conflict('Order is not in pending status');
-    return cancelled;
+    throw Conflict('Order is not in pending status');
   },
 
   async confirmExportOrder(id, userId) {
