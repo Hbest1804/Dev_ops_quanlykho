@@ -10,32 +10,14 @@ import api from '../lib/api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type ImportOrderItem = {
-  id: number;
-  import_order_id: number;
-  product_id: number;
-  quantity: number;
-  note: string;
-  snapshot_product_code: string;
-  snapshot_product_name: string;
-  snapshot_unit: string;
-  snapshot_category: string;
-};
-
 type ImportOrder = {
-  id: number;
-  code: string;
-  supplier: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
-  import_date: string;
-  note: string;
-  created_by: number;
-  creator_name: string;
-  confirmed_by: number | null;
-  confirmed_at: string | null;
-  created_at: string;
-  updated_at: string;
-  items: ImportOrderItem[];
+  id:         number;
+  code:       string;
+  supplier:   string;
+  status:     'pending' | 'confirmed' | 'cancelled';
+  importDate: string;
+  createdBy:  string;
+  createdAt:  string;
 };
 
 type Product = {
@@ -75,10 +57,13 @@ const STATUS_FILTER_MAP: Record<string, ImportOrder['status'] | null> = {
 };
 
 const API_ERROR_MAP: Record<string, string> = {
-  'Supplier is required':            'Vui lòng nhập tên nhà cung cấp',
-  'Import date is required':         'Vui lòng chọn ngày nhập hàng',
-  'Items must not be empty':         'Danh sách sản phẩm không được rỗng',
+  'Supplier is required':               'Vui lòng nhập tên nhà cung cấp',
+  'Import date is required':            'Vui lòng chọn ngày nhập hàng',
+  'Import date is invalid':             'Ngày nhập hàng không hợp lệ',
+  'Items must not be empty':            'Danh sách sản phẩm không được rỗng',
+  'Product ID is required for each item': 'Thiếu sản phẩm ở một hoặc nhiều dòng hàng',
   'Quantity must be a positive integer': 'Số lượng phải là số nguyên dương',
+  'Duplicate product IDs are not allowed': 'Danh sách chứa sản phẩm trùng lặp',
 };
 
 function translateError(msg: string): string {
@@ -111,20 +96,19 @@ export default function StockIn() {
   const fetchOrders = useCallback(async (p = page) => {
     setLoading(true);
     try {
-      const params: Record<string, string | number> = { page: p, limit: 10 };
+      const LIMIT = 20;
+      const params: Record<string, string | number> = { page: p, limit: LIMIT };
       const st = STATUS_FILTER_MAP[statusFilter];
       if (st) params.status = st;
       if (search.trim()) params.search = search.trim();
-      if (fromDate) params.from_date = fromDate;
-      if (toDate) params.to_date = toDate;
+      if (fromDate) params.from = fromDate;
+      if (toDate)   params.to   = toDate;
       const { data } = await api.get('/import-orders', { params });
-      setReceipts(data.data);
-      setPage(data.pagination.page);
-      setTotalPages(data.pagination.totalPages);
-      setTotal(data.pagination.total);
-      if (data.statusCounts) {
-        setStatusCounts(data.statusCounts);
-      }
+      setReceipts(data.data.items);
+      setPage(data.data.page);
+      setTotal(data.data.total);
+      setTotalPages(Math.max(1, Math.ceil(data.data.total / LIMIT)));
+      if (data.statusCounts) setStatusCounts(data.statusCounts);
     } catch {
       toast.error('Không thể tải danh sách phiếu nhập');
     } finally {
@@ -166,13 +150,13 @@ export default function StockIn() {
     setSubmitting(true);
     try {
       await api.post('/import-orders', {
-        supplier:    formData.supplier.trim(),
-        import_date: formData.import_date,
-        note:        formData.note.trim() || null,
+        supplier:   formData.supplier.trim(),
+        importDate: formData.import_date,
+        note:       formData.note.trim() || null,
         items: formData.items.map(item => ({
-          product_id: item.product!.id,
-          quantity:   parseInt(item.quantity),
-          note:       item.note.trim() || null,
+          productId: item.product!.id,
+          quantity:  parseInt(item.quantity),
+          note:      item.note.trim() || null,
         })),
       });
       toast.success('Đã tạo phiếu nhập mới');
@@ -305,7 +289,7 @@ export default function StockIn() {
                         {r.supplier}
                       </div>
                     </td>
-                    <td className="py-3 px-4 font-medium">{new Date(r.import_date).toLocaleDateString('vi-VN')}</td>
+                    <td className="py-3 px-4 font-medium">{new Date(r.importDate).toLocaleDateString('vi-VN')}</td>
                     <td className="py-3 px-4 text-center">
                       <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium uppercase ${
                         r.status === 'pending'   ? 'bg-[#fed7aa] text-[#9a3412]' :
@@ -315,7 +299,7 @@ export default function StockIn() {
                         {r.status === 'pending' ? 'Chờ xử lý' : r.status === 'confirmed' ? 'Đã duyệt' : 'Đã huỷ'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-sm text-slate-600">{r.creator_name ?? `User #${r.created_by}`}</td>
+                    <td className="py-3 px-4 text-sm text-slate-600">{r.createdBy}</td>
                     <td className="py-3 px-4 text-right" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         {r.status === 'pending' && (

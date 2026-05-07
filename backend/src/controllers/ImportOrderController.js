@@ -1,51 +1,111 @@
 import { ImportOrderService } from '../services/ImportOrderService.js';
 
+// ─── DTO helpers ─────────────────────────────────────────────────────────────
+
+function toListItem(o) {
+  return {
+    id:         o.id,
+    code:       o.code,
+    supplier:   o.supplier,
+    status:     o.status,
+    importDate: o.import_date,
+    createdBy:  o.creator_name ?? `User #${o.created_by}`,
+    createdAt:  o.created_at,
+  };
+}
+
+function toDetailDto(o) {
+  return {
+    id:          o.id,
+    code:        o.code,
+    supplier:    o.supplier,
+    status:      o.status,
+    importDate:  o.import_date,
+    note:        o.note,
+    createdBy:   o.creator_name ?? `User #${o.created_by}`,
+    createdAt:   o.created_at,
+    confirmedBy: o.confirmed_by,
+    confirmedAt: o.confirmed_at,
+    updatedAt:   o.updated_at,
+    items: (o.items ?? []).map(item => ({
+      productId:   item.product_id,
+      productName: item.snapshot_product_name,
+      productCode: item.snapshot_product_code,
+      quantity:    item.quantity,
+      unit:        item.snapshot_unit,
+      category:    item.snapshot_category,
+      note:        item.note,
+    })),
+  };
+}
+
+// ─── Controller ──────────────────────────────────────────────────────────────
+
 export const ImportOrderController = {
 
   async list(req, res, next) {
     try {
-      const { status, search, from_date, to_date, page, limit } = req.query;
+      const { status, search, from, to, page, limit } = req.query;
       const result = await ImportOrderService.findAll({
-        status, search, from_date, to_date,
+        status, search,
+        from_date: from,
+        to_date:   to,
         page:  page  ? Number(page)  : 1,
-        limit: limit ? Number(limit) : 10,
+        limit: limit ? Number(limit) : 20,
       });
-      res.json({ success: true, data: result.data, pagination: result.pagination, statusCounts: result.statusCounts });
+      res.json({
+        success: true,
+        data: {
+          items: result.data.map(toListItem),
+          total: result.pagination.total,
+          page:  result.pagination.page,
+        },
+        statusCounts: result.statusCounts,
+      });
     } catch (err) { next(err); }
   },
 
   async getById(req, res, next) {
     try {
       const order = await ImportOrderService.findById(Number(req.params.id));
-      res.json({ success: true, data: order });
+      res.json({ success: true, data: toDetailDto(order) });
     } catch (err) { next(err); }
   },
 
   async create(req, res, next) {
     try {
-      const { supplier, import_date, note, items } = req.body;
+      const { supplier, importDate, note, items } = req.body;
       const order = await ImportOrderService.create(
-        { supplier, import_date, note, items },
+        {
+          supplier,
+          import_date: importDate,
+          note,
+          items: items?.map(item => ({
+            product_id: item.productId,
+            quantity:   item.quantity,
+            note:       item.note ?? null,
+          })),
+        },
         req.user.sub,
       );
-      res.status(201).json({ success: true, data: order });
+      res.status(201).json({
+        success: true,
+        data: { id: order.id, code: order.code, status: order.status, supplier: order.supplier },
+      });
     } catch (err) { next(err); }
   },
 
   async confirm(req, res, next) {
     try {
-      const order = await ImportOrderService.confirm(
-        Number(req.params.id),
-        req.user.sub,
-      );
-      res.json({ success: true, data: order });
+      const order = await ImportOrderService.confirm(Number(req.params.id), req.user.sub);
+      res.json({ success: true, message: 'Import order confirmed', data: { id: order.id, status: order.status } });
     } catch (err) { next(err); }
   },
 
   async cancel(req, res, next) {
     try {
       const order = await ImportOrderService.cancel(Number(req.params.id));
-      res.json({ success: true, data: order });
+      res.json({ success: true, message: 'Import order cancelled', data: { id: order.id, status: order.status } });
     } catch (err) { next(err); }
   },
 };

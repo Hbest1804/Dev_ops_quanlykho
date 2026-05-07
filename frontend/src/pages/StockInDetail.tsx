@@ -11,30 +11,28 @@ import api from '../lib/api';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type ImportOrderItem = {
-  id: number;
-  import_order_id: number;
-  product_id: number;
-  quantity: number;
-  note: string;
-  snapshot_product_code: string;
-  snapshot_product_name: string;
-  snapshot_unit: string;
-  snapshot_category: string;
+  productId:   number;
+  productCode: string;
+  productName: string;
+  quantity:    number;
+  unit:        string;
+  category:    string;
+  note:        string | null;
 };
 
 type ImportOrder = {
-  id: number;
-  code: string;
-  supplier: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
-  import_date: string;
-  note: string;
-  created_by: number;
-  confirmed_by: number | null;
-  confirmed_at: string | null;
-  created_at: string;
-  updated_at: string;
-  items: ImportOrderItem[];
+  id:          number;
+  code:        string;
+  supplier:    string;
+  status:      'pending' | 'confirmed' | 'cancelled';
+  importDate:  string;
+  note:        string | null;
+  createdBy:   string;
+  createdAt:   string;
+  confirmedBy: number | null;
+  confirmedAt: string | null;
+  updatedAt:   string;
+  items:       ImportOrderItem[];
 };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -52,8 +50,8 @@ export default function StockInDetail() {
   const navigate = useNavigate();
   const { confirm, dialog } = useConfirm();
 
-  const [order, setOrder]               = useState<ImportOrder | null>(null);
-  const [loading, setLoading]           = useState(true);
+  const [order, setOrder]                 = useState<ImportOrder | null>(null);
+  const [loading, setLoading]             = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
   // ── Fetch ────────────────────────────────────────────────────────────────
@@ -80,8 +78,8 @@ export default function StockInDetail() {
 
     setActionLoading(true);
     try {
-      const { data } = await api.post(`/import-orders/${order.id}/confirm`);
-      setOrder(data.data);
+      await api.post(`/import-orders/${order.id}/confirm`);
+      setOrder(prev => prev ? { ...prev, status: 'confirmed' } : prev);
       toast.success('Đã xác nhận phiếu nhập!');
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? 'Xác nhận thất bại');
@@ -102,8 +100,8 @@ export default function StockInDetail() {
 
     setActionLoading(true);
     try {
-      const { data } = await api.post(`/import-orders/${order.id}/cancel`);
-      setOrder(data.data);
+      await api.post(`/import-orders/${order.id}/cancel`);
+      setOrder(prev => prev ? { ...prev, status: 'cancelled' } : prev);
       toast.success('Đã huỷ phiếu nhập');
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? 'Hủy phiếu thất bại');
@@ -154,11 +152,10 @@ export default function StockInDetail() {
                 {status.label}
               </span>
             </div>
-            <p className="text-sm text-slate-500 mt-0.5">Tạo lúc {new Date(order.created_at).toLocaleString('vi-VN')}</p>
+            <p className="text-sm text-slate-500 mt-0.5">Tạo lúc {new Date(order.createdAt).toLocaleString('vi-VN')}</p>
           </div>
         </div>
 
-        {/* AC-1 & AC-3: chỉ hiện nút khi status === 'pending' */}
         {order.status === 'pending' && (
           <div className="flex gap-2 shrink-0">
             <button
@@ -197,7 +194,7 @@ export default function StockInDetail() {
               <Calendar size={16} className="text-slate-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-slate-500">Ngày nhập hàng</p>
-                <p className="text-sm font-medium text-slate-800">{new Date(order.import_date).toLocaleDateString('vi-VN')}</p>
+                <p className="text-sm font-medium text-slate-800">{new Date(order.importDate).toLocaleDateString('vi-VN')}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -226,38 +223,29 @@ export default function StockInDetail() {
               <User size={16} className="text-slate-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-slate-500">Người tạo</p>
-                <p className="text-sm font-medium text-slate-800">User #{order.created_by}</p>
+                <p className="text-sm font-medium text-slate-800">{order.createdBy}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <Clock size={16} className="text-slate-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-slate-500">Ngày tạo</p>
-                <p className="text-sm font-medium text-slate-800">{new Date(order.created_at).toLocaleString('vi-VN')}</p>
+                <p className="text-sm font-medium text-slate-800">{new Date(order.createdAt).toLocaleString('vi-VN')}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <Clock size={16} className="text-slate-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-slate-500">Cập nhật lần cuối</p>
-                <p className="text-sm font-medium text-slate-800">{new Date(order.updated_at).toLocaleString('vi-VN')}</p>
+                <p className="text-sm font-medium text-slate-800">{new Date(order.updatedAt).toLocaleString('vi-VN')}</p>
               </div>
             </div>
-            {order.confirmed_by && (
+            {order.confirmedAt && (
               <div className="flex items-start gap-3">
                 <CheckCircle size={16} className="text-green-500 mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs text-slate-500">Người xác nhận</p>
-                  <p className="text-sm font-medium text-slate-800">User #{order.confirmed_by}</p>
-                </div>
-              </div>
-            )}
-            {order.confirmed_at && (
-              <div className="flex items-start gap-3">
-                <Clock size={16} className="text-green-500 mt-0.5 shrink-0" />
-                <div>
                   <p className="text-xs text-slate-500">Xác nhận lúc</p>
-                  <p className="text-sm font-medium text-slate-800">{new Date(order.confirmed_at).toLocaleString('vi-VN')}</p>
+                  <p className="text-sm font-medium text-slate-800">{new Date(order.confirmedAt).toLocaleString('vi-VN')}</p>
                 </div>
               </div>
             )}
@@ -296,12 +284,12 @@ export default function StockInDetail() {
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
                 {order.items.map((item, idx) => (
-                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                  <tr key={item.productId} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3 px-4 text-slate-400">{idx + 1}</td>
-                    <td className="py-3 px-4 font-medium text-[#0058be]">{item.snapshot_product_code}</td>
-                    <td className="py-3 px-4 font-medium text-slate-800">{item.snapshot_product_name}</td>
-                    <td className="py-3 px-4 text-slate-500">{item.snapshot_category}</td>
-                    <td className="py-3 px-4 text-slate-500">{item.snapshot_unit}</td>
+                    <td className="py-3 px-4 font-medium text-[#0058be]">{item.productCode}</td>
+                    <td className="py-3 px-4 font-medium text-slate-800">{item.productName}</td>
+                    <td className="py-3 px-4 text-slate-500">{item.category}</td>
+                    <td className="py-3 px-4 text-slate-500">{item.unit}</td>
                     <td className="py-3 px-4 text-right font-semibold text-slate-800">{item.quantity.toLocaleString()}</td>
                     <td className="py-3 px-4 text-slate-400">{item.note || '—'}</td>
                   </tr>

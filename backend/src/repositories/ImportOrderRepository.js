@@ -86,9 +86,11 @@ export const ImportOrderRepository = {
     const { rows: orders } = await pool.query(
       `SELECT io.id, io.code, io.supplier, io.status,
               io.import_date, io.note,
-              io.created_by, io.confirmed_by, io.confirmed_at,
+              io.created_by, u.name AS creator_name,
+              io.confirmed_by, io.confirmed_at,
               io.created_at, io.updated_at
          FROM import_orders io
+         LEFT JOIN users u ON u.id = io.created_by
         WHERE io.id = $1`,
       [id],
     );
@@ -186,7 +188,7 @@ export const ImportOrderRepository = {
       if (!order)
         throw Object.assign(new Error('Phiếu nhập không tồn tại'), { status: 404 });
       if (order.status !== 'pending')
-        throw Object.assign(new Error('Chỉ có thể xác nhận phiếu đang chờ xử lý'), { status: 400 });
+        throw Object.assign(new Error('Order is not in pending status'), { status: 409 });
 
       const { rows: items } = await client.query(
         `SELECT ioi.id, ioi.product_id, ioi.quantity,

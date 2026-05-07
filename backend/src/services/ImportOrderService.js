@@ -15,24 +15,24 @@ export const ImportOrderService = {
 
   async create({ supplier, import_date, note, items }, userId) {
     if (!supplier?.trim())
-      throw BadRequest('Vui lòng nhập tên nhà cung cấp');
+      throw BadRequest('Supplier is required');
     if (!import_date)
-      throw BadRequest('Vui lòng chọn ngày nhập hàng');
+      throw BadRequest('Import date is required');
     if (isNaN(new Date(import_date).getTime()))
-      throw BadRequest('Ngày nhập hàng không hợp lệ');
+      throw BadRequest('Import date is invalid');
     if (!Array.isArray(items) || items.length === 0)
-      throw BadRequest('Phiếu nhập phải có ít nhất một sản phẩm');
+      throw BadRequest('Items must not be empty');
 
     for (const item of items) {
       if (!item.product_id)
-        throw BadRequest('Mỗi dòng hàng phải chọn sản phẩm');
+        throw BadRequest('Product ID is required for each item');
       if (!item.quantity || Number(item.quantity) <= 0)
-        throw BadRequest('Số lượng mỗi sản phẩm phải lớn hơn 0');
+        throw BadRequest('Quantity must be a positive integer');
     }
 
     const productIds = items.map(i => i.product_id);
     if (new Set(productIds).size !== productIds.length)
-      throw BadRequest('Danh sách chứa sản phẩm trùng lặp');
+      throw BadRequest('Duplicate product IDs are not allowed');
 
     return ImportOrderRepository.create({
       supplier: supplier.trim(),
@@ -47,7 +47,7 @@ export const ImportOrderService = {
     const order = await ImportOrderRepository.findById(id);
     if (!order) throw NotFound('Phiếu nhập không tồn tại');
     if (order.status !== 'pending')
-      throw BadRequest('Chỉ có thể xác nhận phiếu đang chờ xử lý');
+      throw Conflict('Order is not in pending status');
     if (order.items.length === 0)
       throw BadRequest('Không thể xác nhận phiếu nhập không có sản phẩm nào');
 
