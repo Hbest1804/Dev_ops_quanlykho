@@ -16,11 +16,12 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onSelect: (product: Product) => void;
+  disableOutOfStock?: boolean;
 };
 
 const LIMIT = 10;
 
-export default function ProductPickerModal({ open, onClose, onSelect }: Props) {
+export default function ProductPickerModal({ open, onClose, onSelect, disableOutOfStock = false }: Props) {
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
@@ -111,19 +112,27 @@ export default function ProductPickerModal({ open, onClose, onSelect }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {products.map(p => (
-                  <tr
-                    key={p.id}
-                    onClick={() => handleSelect(p)}
-                    className="hover:bg-[#f0f5ff] cursor-pointer transition-colors"
-                  >
-                    <td className="py-2.5 px-4 font-medium text-[#0058be]">{p.code}</td>
-                    <td className="py-2.5 px-4 text-slate-800">{p.name}</td>
-                    <td className="py-2.5 px-4 text-slate-500">{p.category}</td>
-                    <td className="py-2.5 px-4 text-slate-500">{p.unit}</td>
-                    <td className="py-2.5 px-4 text-right font-medium text-slate-700">{p.stock.toLocaleString()}</td>
-                  </tr>
-                ))}
+                {products.map(p => {
+                  const disabled = disableOutOfStock && p.stock === 0;
+                  return (
+                    <tr
+                      key={p.id}
+                      onClick={() => !disabled && handleSelect(p)}
+                      className={disabled ? 'opacity-50 bg-slate-50 cursor-not-allowed' : 'hover:bg-[#f0f5ff] cursor-pointer transition-colors'}
+                    >
+                      <td className="py-2.5 px-4 font-medium text-[#0058be]">{p.code}</td>
+                      <td className="py-2.5 px-4 text-slate-800">{p.name}</td>
+                      <td className="py-2.5 px-4 text-slate-500">{p.category}</td>
+                      <td className="py-2.5 px-4 text-slate-500">{p.unit}</td>
+                      <td className="py-2.5 px-4 text-right font-medium">
+                        {disabled
+                          ? <span className="text-xs font-medium text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Hết hàng</span>
+                          : <span className="text-slate-700">{p.stock.toLocaleString()}</span>
+                        }
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

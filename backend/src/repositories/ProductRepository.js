@@ -94,6 +94,15 @@ export const ProductRepository = {
     return rows;
   },
 
+  async findByIdsWithStock(ids) {
+    if (!ids.length) return [];
+    const { rows } = await pool.query(
+      `SELECT id, code, stock, is_deleted FROM products WHERE id = ANY($1::int[])`,
+      [ids]
+    );
+    return rows;
+  },
+
   async findByCode(code) {
     const { rows } = await pool.query(
       'SELECT id FROM products WHERE code = $1',
