@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
 
 type Product = {
   id: number;
@@ -34,7 +35,7 @@ export default function ProductPickerModal({ open, onClose, onSelect }: Props) {
         setProducts(data.data.items);
         setTotal(data.data.total);
       })
-      .catch(() => {})
+      .catch(() => toast.error('Không thể tải danh sách sản phẩm'))
       .finally(() => setLoading(false));
   };
 
@@ -43,6 +44,9 @@ export default function ProductPickerModal({ open, onClose, onSelect }: Props) {
     setSearch('');
     setPage(1);
     fetchProducts('', 1);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [open]);
 
   const handleSearch = (q: string) => {

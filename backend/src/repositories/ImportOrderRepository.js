@@ -21,7 +21,7 @@ export const ImportOrderRepository = {
       const quantities = items.map(i => i.quantity);
       const notes      = items.map(i => i.note ?? null);
 
-      await client.query(
+      const { rowCount } = await client.query(
         `INSERT INTO import_order_items
            (import_order_id, product_id, quantity, note,
             snapshot_product_code, snapshot_product_name, snapshot_unit, snapshot_category)
@@ -30,6 +30,9 @@ export const ImportOrderRepository = {
          JOIN products p ON p.id = v.product_id`,
         [order.id, productIds, quantities, notes]
       );
+      if (rowCount !== items.length) {
+        throw new Error('One or more products not found or deleted');
+      }
 
       await client.query('COMMIT');
       return order;

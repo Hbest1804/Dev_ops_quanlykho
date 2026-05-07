@@ -71,7 +71,7 @@ describe('ImportOrderService Unit Tests', () => {
 
     it('UT-IMP-CREATE-003: quantity <= 0 → 400', async () => {
       await expect(ImportOrderService.create({ ...validPayload(), items: [{ productId: 1, quantity: 0 }] }))
-        .rejects.toThrow('Quantity must be > 0');
+        .rejects.toThrow('Quantity must be a positive integer');
     });
 
     it('UT-IMP-CREATE-004: productId không tồn tại → 404', async () => {

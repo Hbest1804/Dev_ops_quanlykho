@@ -9,8 +9,8 @@ export const ImportOrderService = {
     if (!items || items.length === 0) throw BadRequest('Items must not be empty');
 
     for (const item of items) {
-      const qty = parseInt(item.quantity);
-      if (isNaN(qty) || qty <= 0) throw BadRequest('Quantity must be > 0');
+      const qty = Number(item.quantity);
+      if (!Number.isInteger(qty) || qty <= 0) throw BadRequest('Quantity must be a positive integer');
     }
 
     const productIds = items.map(i => i.productId);
@@ -21,7 +21,7 @@ export const ImportOrderService = {
 
     return ImportOrderRepository.createWithItems(
       { supplier, importDate, note, userId },
-      items.map(i => ({ productId: i.productId, quantity: parseInt(i.quantity), note: i.note ?? null }))
+      items.map(i => ({ productId: i.productId, quantity: Number(i.quantity), note: i.note ?? null }))
     );
   },
 };
