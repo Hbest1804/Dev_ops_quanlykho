@@ -1,8 +1,9 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, CheckCircle, XCircle, X, Trash2 } from 'lucide-react';
 import CustomSelect from '../component/CustomSelect';
 import DatePicker from '../component/DatePicker';
+import ProductPickerModal from '../component/ProductPickerModal';
 import { useConfirm } from '../component/useConfirm';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
@@ -17,11 +18,7 @@ type Product = {
 };
 
 type FormItem = {
-  product_id: number;
-  snapshot_product_code: string;
-  snapshot_product_name: string;
-  snapshot_unit: string;
-  snapshot_category: string;
+  product: Product | null;
   quantity: string;
   note: string;
 };
@@ -63,18 +60,12 @@ export default function StockIn() {
   const { confirm, dialog } = useConfirm();
 
   const [receipts, setReceipts] = useState<ImportOrder[]>(MOCK_IMPORT_ORDERS);
-  const [products, setProducts] = useState<Product[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Trạng thái: Tất cả');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
-
-  useEffect(() => {
-    api.get('/products', { params: { limit: 200 } })
-      .then(({ data }) => setProducts(data.data.items))
-      .catch(() => toast.error('Không thể tải danh sách sản phẩm'));
-  }, []);
+  const [pickerIdx, setPickerIdx] = useState<number | null>(null);
 
   const closeModal = () => {
     setIsModalOpen(false);
@@ -83,7 +74,7 @@ export default function StockIn() {
 
   const addItem = () => setFormData(f => ({
     ...f,
-    items: [...f.items, { product_id: 0, snapshot_product_code: '', snapshot_product_name: '', snapshot_unit: '', snapshot_category: '', quantity: '', note: '' }],
+    items: [...f.items, { product: null, quantity: '', note: '' }],
   }));
 
   const removeItem = (idx: number) => setFormData(f => ({
@@ -95,18 +86,6 @@ export default function StockIn() {
     ...f,
     items: f.items.map((item, i) => i === idx ? { ...item, ...patch } : item),
   }));
-
-  const selectProduct = (idx: number, productId: number) => {
-    const p = products.find(p => p.id === productId);
-    if (!p) return;
-    updateItem(idx, {
-      product_id: p.id,
-      snapshot_product_code: p.code,
-      snapshot_product_name: p.name,
-      snapshot_unit: p.unit,
-      snapshot_category: p.category,
-    });
-  };
 
   const handleConfirm = async (id: number) => {
     if (!await confirm({ title: 'Xác nhận phiếu nhập', message: 'Kho hàng sẽ được cập nhật sau khi xác nhận.', confirmLabel: 'Xác nhận', variant: 'primary' })) return;
@@ -126,7 +105,7 @@ export default function StockIn() {
     if (!formData.import_date) { toast.error('Vui lòng chọn ngày nhập hàng'); return; }
     if (formData.items.length === 0) { toast.error('Danh sách sản phẩm không được rỗng'); return; }
     for (const item of formData.items) {
-      if (!item.product_id) { toast.error('Vui lòng chọn sản phẩm cho tất cả các dòng hàng'); return; }
+      if (!item.product) { toast.error('Vui lòng chọn sản phẩm cho tất cả các dòng hàng'); return; }
       if (!item.quantity || parseInt(item.quantity) <= 0) { toast.error('Số lượng phải lớn hơn 0'); return; }
     }
 
@@ -137,24 +116,23 @@ export default function StockIn() {
         importDate: formData.import_date,
         note: formData.note.trim() || null,
         items: formData.items.map(item => ({
-          productId: item.product_id,
+          productId: item.product!.id,
           quantity: parseInt(item.quantity),
           note: item.note.trim() || null,
         })),
       });
-      // Thêm phiếu mới vào đầu danh sách mock cho đến khi list API được merge
       const newOrder: ImportOrder = {
         ...data.data,
         items: formData.items.map((item, idx) => ({
           id: Date.now() + idx,
           import_order_id: data.data.id,
-          product_id: item.product_id,
+          product_id: item.product!.id,
           quantity: parseInt(item.quantity),
           note: item.note.trim() || null,
-          snapshot_product_code: item.snapshot_product_code,
-          snapshot_product_name: item.snapshot_product_name,
-          snapshot_unit: item.snapshot_unit,
-          snapshot_category: item.snapshot_category,
+          snapshot_product_code: item.product!.code,
+          snapshot_product_name: item.product!.name,
+          snapshot_unit: item.product!.unit,
+          snapshot_category: item.product!.category,
         })),
       };
       setReceipts(prev => [newOrder, ...prev]);
@@ -357,19 +335,22 @@ export default function StockIn() {
                           {formData.items.map((item, idx) => (
                             <tr key={idx}>
                               <td className="py-2 px-3">
-                                <select
-                                  required
-                                  value={item.product_id || ''}
-                                  onChange={e => selectProduct(idx, Number(e.target.value))}
-                                  className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm focus:border-[#0058be] outline-none cursor-pointer bg-white"
-                                >
-                                  <option value="" disabled>Chọn sản phẩm...</option>
-                                  {products.map(p => (
-                                    <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
-                                  ))}
-                                </select>
-                                {item.snapshot_unit && (
-                                  <p className="text-xs text-slate-400 mt-0.5">ĐVT: {item.snapshot_unit} · {item.snapshot_category}</p>
+                                {item.product ? (
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <p className="font-medium text-slate-800">{item.product.code} — {item.product.name}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">ĐVT: {item.product.unit} · {item.product.category}</p>
+                                    </div>
+                                    <button type="button" onClick={() => setPickerIdx(idx)} className="text-xs text-[#0058be] hover:underline shrink-0 cursor-pointer mt-0.5">Đổi</button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPickerIdx(idx)}
+                                    className="w-full text-left px-2 py-1.5 border border-dashed border-slate-300 rounded text-sm text-slate-400 hover:border-[#0058be] hover:text-[#0058be] transition-colors cursor-pointer"
+                                  >
+                                    + Chọn sản phẩm
+                                  </button>
                                 )}
                               </td>
                               <td className="py-2 px-3">
@@ -421,6 +402,15 @@ export default function StockIn() {
           </div>
         </div>
       )}
+
+      <ProductPickerModal
+        open={pickerIdx !== null}
+        onClose={() => setPickerIdx(null)}
+        onSelect={product => {
+          if (pickerIdx !== null) updateItem(pickerIdx, { product });
+          setPickerIdx(null);
+        }}
+      />
     </div>
   );
 }

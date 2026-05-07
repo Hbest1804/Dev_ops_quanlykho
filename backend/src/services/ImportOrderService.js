@@ -19,13 +19,9 @@ export const ImportOrderService = {
     const missingId = productIds.find(id => !activeIds.has(id));
     if (missingId !== undefined) throw NotFound(`Product ${missingId} not found`);
 
-    const order = await ImportOrderRepository.create({ supplier, importDate, note, userId });
-
-    await ImportOrderRepository.createItems(
-      order.id,
+    return ImportOrderRepository.createWithItems(
+      { supplier, importDate, note, userId },
       items.map(i => ({ productId: i.productId, quantity: parseInt(i.quantity), note: i.note ?? null }))
     );
-
-    return order;
   },
 };
