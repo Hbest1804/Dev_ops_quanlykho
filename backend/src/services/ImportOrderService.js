@@ -6,6 +6,7 @@ export const ImportOrderService = {
   async create({ supplier, importDate, note, items, userId }) {
     if (!supplier) throw BadRequest('Supplier is required');
     if (!importDate) throw BadRequest('Import date is required');
+    if (isNaN(new Date(importDate).getTime())) throw BadRequest('Import date is invalid');
     if (!items || items.length === 0) throw BadRequest('Items must not be empty');
 
     for (const item of items) {
