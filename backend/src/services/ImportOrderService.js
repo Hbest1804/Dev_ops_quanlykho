@@ -1,5 +1,5 @@
 import { ImportOrderRepository } from '../repositories/ImportOrderRepository.js';
-import { BadRequest, NotFound, Conflict } from '../utils/AppError.js';
+import { BadRequest, NotFound } from '../utils/AppError.js';
 
 export const ImportOrderService = {
 
@@ -46,8 +46,6 @@ export const ImportOrderService = {
 
   async confirm(id, userId) {
     const order = await ImportOrderService.findById(id);
-    if (order.status !== 'pending')
-      throw Conflict('Order is not in pending status');
     if (order.items.length === 0)
       throw BadRequest('Cannot confirm import order with no items');
 
@@ -55,10 +53,7 @@ export const ImportOrderService = {
   },
 
   async cancel(id) {
-    const order = await ImportOrderService.findById(id);
-    if (order.status !== 'pending')
-      throw Conflict('Order is not in pending status');
-
+    await ImportOrderService.findById(id);
     return ImportOrderRepository.cancel(id);
   },
 };

@@ -89,8 +89,8 @@ export default function StockInDetail() {
 
     setActionLoading(true);
     try {
-      await api.post(`/import-orders/${order.id}/confirm`);
-      setOrder(prev => prev ? { ...prev, status: 'confirmed' } : prev);
+      const { data } = await api.post(`/import-orders/${order.id}/confirm`);
+      setOrder(prev => prev ? { ...data.data, createdBy: prev.createdBy } : prev);
       toast.success('Đã xác nhận phiếu nhập!');
     } catch (err: any) {
       toast.error(translateError(err?.response?.data?.message) || 'Xác nhận thất bại');
@@ -111,8 +111,8 @@ export default function StockInDetail() {
 
     setActionLoading(true);
     try {
-      await api.post(`/import-orders/${order.id}/cancel`);
-      setOrder(prev => prev ? { ...prev, status: 'cancelled' } : prev);
+      const { data } = await api.post(`/import-orders/${order.id}/cancel`);
+      setOrder(prev => prev ? { ...data.data, createdBy: prev.createdBy } : prev);
       toast.success('Đã huỷ phiếu nhập');
     } catch (err: any) {
       toast.error(translateError(err?.response?.data?.message) || 'Hủy phiếu thất bại');
