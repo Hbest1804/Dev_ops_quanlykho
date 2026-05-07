@@ -135,7 +135,7 @@ export const ProductRepository = {
   async updateStock(id, quantityChange, client = pool) {
     const { rows } = await client.query(
       `UPDATE products
-       SET stock = stock + $1
+       SET stock = stock + $1, updated_at = NOW()
        WHERE id = $2
        RETURNING *`,
       [quantityChange, id]
@@ -155,7 +155,7 @@ export const ProductRepository = {
 
     const { rows } = await client.query(
       `UPDATE products AS p
-       SET stock = p.stock + v.change
+       SET stock = p.stock + v.change, updated_at = NOW()
        FROM (VALUES ${placeholders}) AS v(id, change)
        WHERE p.id = v.id
        RETURNING p.*`,
