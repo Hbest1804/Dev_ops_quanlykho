@@ -1,7 +1,16 @@
 import { pool } from '../db/Pool.js';
+import { NotFound } from '../utils/AppError.js';
 
 export const ExportOrderRepository = {
-  async findById(id, client = pool) {
+  async findById(id) {
+    const { rows } = await pool.query(
+      'SELECT * FROM export_orders WHERE id = $1',
+      [id]
+    );
+    return rows[0] ?? null;
+  },
+
+  async findByIdForUpdate(id, client) {
     const { rows } = await client.query(
       'SELECT * FROM export_orders WHERE id = $1 FOR UPDATE',
       [id]
@@ -21,7 +30,7 @@ export const ExportOrderRepository = {
     const { rows } = await client.query(
       `UPDATE export_orders
        SET status = $1, confirmed_by = $2, confirmed_at = NOW()
-       WHERE id = $3
+       WHERE id = $3 AND status = 'pending'
        RETURNING *`,
       [status, confirmedBy, id]
     );
@@ -60,7 +69,7 @@ export const ExportOrderRepository = {
         [order.id, productIds, quantities, notes]
       );
       if (itemRows.length !== items.length) {
-        throw new Error('One or more products not found or deleted');
+        throw NotFound('One or more products not found or deleted');
       }
 
       await client.query('COMMIT');

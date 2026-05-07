@@ -4,6 +4,19 @@ import { ArrowLeft, CheckCircle, XCircle, Package, Calendar, User, FileText, Clo
 import toast from 'react-hot-toast';
 import { MOCK_EXPORT_ORDERS, getReasonLabel, type ExportOrder } from '../data/stockOutMock';
 import { useConfirm } from '../component/useConfirm';
+import api from '../lib/api';
+
+const API_ERROR_MAP: Record<string, string> = {
+  'Export order not found': 'Không tìm thấy phiếu xuất',
+  'Order is not in pending status': 'Phiếu không ở trạng thái chờ xác nhận',
+  'Insufficient stock at confirmation time': 'Tồn kho không đủ tại thời điểm xác nhận',
+  'Export order has no items': 'Phiếu xuất không có sản phẩm nào',
+  'Product not found or deleted': 'Sản phẩm không tồn tại hoặc đã bị xóa',
+};
+
+function translateError(msg: string): string {
+  return API_ERROR_MAP[msg] ?? msg;
+}
 
 const MOCK_USERS: Record<number, string> = {
   1: 'Nguyễn Văn A',
@@ -44,11 +57,14 @@ export default function StockOutDetail() {
 
   const handleConfirm = async () => {
     if (!await confirm({ title: 'Xác nhận phiếu xuất', message: 'Tồn kho sẽ được cập nhật sau khi xác nhận.', confirmLabel: 'Xác nhận', variant: 'primary' })) return;
-    setOrders(prev => prev.map(o => o.id === order.id
-      ? { ...o, status: 'confirmed', confirmed_by: 1, confirmed_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-      : o
-    ));
-    toast.success('Đã xác nhận phiếu xuất!');
+    try {
+      const { data } = await api.put(`/export-orders/${order.id}/confirm`);
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, ...data.data, items: o.items } : o));
+      toast.success('Đã xác nhận phiếu xuất!');
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Không thể xác nhận phiếu xuất';
+      toast.error(translateError(msg));
+    }
   };
 
   const handleCancel = async () => {
