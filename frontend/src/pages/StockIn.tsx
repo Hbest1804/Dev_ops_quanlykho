@@ -73,7 +73,7 @@ export default function StockIn() {
   useEffect(() => {
     api.get('/products', { params: { limit: 200 } })
       .then(({ data }) => setProducts(data.data.items))
-      .catch(() => {});
+      .catch(() => toast.error('Không thể tải danh sách sản phẩm'));
   }, []);
 
   const closeModal = () => {
@@ -150,7 +150,7 @@ export default function StockIn() {
           import_order_id: data.data.id,
           product_id: item.product_id,
           quantity: parseInt(item.quantity),
-          note: item.note,
+          note: item.note.trim() || null,
           snapshot_product_code: item.snapshot_product_code,
           snapshot_product_name: item.snapshot_product_name,
           snapshot_unit: item.snapshot_unit,
