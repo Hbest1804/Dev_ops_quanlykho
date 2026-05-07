@@ -15,7 +15,7 @@ export const ExportOrderController = {
     try {
       const id = parseInt(req.params.id, 10);
       if (!id) return res.status(400).json({ success: false, message: 'Invalid export order ID' });
-      const order = await ExportOrderService.cancelExportOrder(id);
+      const order = await ExportOrderService.cancelExportOrder(id, req.user.sub);
       res.status(200).json({ success: true, message: 'Export order cancelled', data: order });
     } catch (err) { next(err); }
   },
