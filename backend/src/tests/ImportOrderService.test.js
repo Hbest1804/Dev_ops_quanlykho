@@ -5,8 +5,7 @@ import { ProductRepository } from '../repositories/ProductRepository.js';
 
 vi.mock('../repositories/ImportOrderRepository.js', () => ({
   ImportOrderRepository: {
-    create: vi.fn(),
-    createItems: vi.fn(),
+    createWithItems: vi.fn(),
   },
 }));
 
@@ -50,18 +49,13 @@ describe('ImportOrderService Unit Tests', () => {
         { id: 1, is_deleted: false },
         { id: 2, is_deleted: false },
       ]);
-      const order = mockOrder();
-      ImportOrderRepository.create.mockResolvedValue(order);
-      ImportOrderRepository.createItems.mockResolvedValue([]);
+      ImportOrderRepository.createWithItems.mockResolvedValue(mockOrder());
 
       const result = await ImportOrderService.create(validPayload());
 
       expect(ProductRepository.findByIds).toHaveBeenCalledWith([1, 2]);
-      expect(ImportOrderRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ supplier: 'Công ty ABC', importDate: '2025-06-01', userId: 1 })
-      );
-      expect(ImportOrderRepository.createItems).toHaveBeenCalledWith(
-        10,
+      expect(ImportOrderRepository.createWithItems).toHaveBeenCalledWith(
+        expect.objectContaining({ supplier: 'Công ty ABC', importDate: '2025-06-01', userId: 1 }),
         expect.arrayContaining([
           expect.objectContaining({ productId: 1, quantity: 20 }),
           expect.objectContaining({ productId: 2, quantity: 10 }),
@@ -92,10 +86,9 @@ describe('ImportOrderService Unit Tests', () => {
         .rejects.toThrow('Supplier is required');
     });
 
-    it('UT-IMP-CREATE-006: Snapshot fields do DB xử lý — createItems nhận đúng productId/quantity', async () => {
+    it('UT-IMP-CREATE-006: Snapshot fields do DB xử lý — createWithItems nhận đúng productId/quantity', async () => {
       ProductRepository.findByIds.mockResolvedValue([{ id: 1, is_deleted: false }]);
-      ImportOrderRepository.create.mockResolvedValue(mockOrder());
-      ImportOrderRepository.createItems.mockResolvedValue([]);
+      ImportOrderRepository.createWithItems.mockResolvedValue(mockOrder());
 
       await ImportOrderService.create({
         supplier: 'Công ty ABC',
@@ -104,9 +97,8 @@ describe('ImportOrderService Unit Tests', () => {
         userId: 1,
       });
 
-      // Snapshot (code, name, unit, category) lấy từ JOIN trong createItems — không truyền từ service
-      expect(ImportOrderRepository.createItems).toHaveBeenCalledWith(
-        10,
+      expect(ImportOrderRepository.createWithItems).toHaveBeenCalledWith(
+        expect.anything(),
         [expect.objectContaining({ productId: 1, quantity: 5 })]
       );
     });
