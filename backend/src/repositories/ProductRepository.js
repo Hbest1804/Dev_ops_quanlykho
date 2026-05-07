@@ -85,6 +85,15 @@ export const ProductRepository = {
   /**
    * Lấy một sản phẩm theo mã (dùng kiểm tra trùng code).
    */
+  async findByIds(ids) {
+    if (!ids.length) return [];
+    const { rows } = await pool.query(
+      `SELECT id, is_deleted FROM products WHERE id = ANY($1::int[])`,
+      [ids]
+    );
+    return rows;
+  },
+
   async findByCode(code) {
     const { rows } = await pool.query(
       'SELECT id FROM products WHERE code = $1',
