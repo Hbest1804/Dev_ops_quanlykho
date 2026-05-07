@@ -67,7 +67,9 @@ export const ImportOrderController = {
 
   async getById(req, res, next) {
     try {
-      const order = await ImportOrderService.findById(Number(req.params.id));
+      const id = parseInt(req.params.id, 10);
+      if (!id) return res.status(400).json({ success: false, message: 'Invalid order ID' });
+      const order = await ImportOrderService.findById(id);
       res.json({ success: true, data: toDetailDto(order) });
     } catch (err) { next(err); }
   },
@@ -97,14 +99,18 @@ export const ImportOrderController = {
 
   async confirm(req, res, next) {
     try {
-      const order = await ImportOrderService.confirm(Number(req.params.id), req.user.sub);
+      const id = parseInt(req.params.id, 10);
+      if (!id) return res.status(400).json({ success: false, message: 'Invalid order ID' });
+      const order = await ImportOrderService.confirm(id, req.user.sub);
       res.json({ success: true, message: 'Import order confirmed', data: { id: order.id, status: order.status } });
     } catch (err) { next(err); }
   },
 
   async cancel(req, res, next) {
     try {
-      const order = await ImportOrderService.cancel(Number(req.params.id));
+      const id = parseInt(req.params.id, 10);
+      if (!id) return res.status(400).json({ success: false, message: 'Invalid order ID' });
+      const order = await ImportOrderService.cancel(id);
       res.json({ success: true, message: 'Import order cancelled', data: { id: order.id, status: order.status } });
     } catch (err) { next(err); }
   },
