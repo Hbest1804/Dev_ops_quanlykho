@@ -46,7 +46,7 @@ export const ExportOrderService = {
     if (!order) throw NotFound('Export order not found');
     if (order.status !== 'pending') throw Conflict('Order is not in pending status');
 
-    const cancelled = await ExportOrderRepository.cancel(id);
+    const cancelled = await ExportOrderRepository.cancel(id, userId);
     if (!cancelled) throw Conflict('Order is not in pending status');
     return cancelled;
   },

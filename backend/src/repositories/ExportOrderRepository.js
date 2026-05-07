@@ -26,13 +26,13 @@ export const ExportOrderRepository = {
     return rows;
   },
 
-  async cancel(id, client = pool) {
+  async cancel(id, cancelledBy, client = pool) {
     const { rows } = await client.query(
       `UPDATE export_orders
-       SET status = 'cancelled', updated_at = NOW()
+       SET status = 'cancelled', cancelled_by = $2, cancelled_at = NOW(), updated_at = NOW()
        WHERE id = $1 AND status = 'pending'
        RETURNING *`,
-      [id]
+      [id, cancelledBy]
     );
     return rows[0] ?? null;
   },
