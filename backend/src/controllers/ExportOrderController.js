@@ -11,6 +11,15 @@ export const ExportOrderController = {
     } catch (err) { next(err); }
   },
 
+  async cancel(req, res, next) {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (!id) return res.status(400).json({ success: false, message: 'Invalid export order ID' });
+      const order = await ExportOrderService.cancelExportOrder(id);
+      res.status(200).json({ success: true, message: 'Export order cancelled', data: order });
+    } catch (err) { next(err); }
+  },
+
   async confirm(req, res, next) {
     try {
       const id = parseInt(req.params.id, 10);
