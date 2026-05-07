@@ -69,11 +69,14 @@ export default function StockOutDetail() {
 
   const handleCancel = async () => {
     if (!await confirm({ title: 'Huỷ phiếu xuất', message: 'Bạn có chắc muốn huỷ phiếu xuất này? Hành động không thể hoàn tác.', confirmLabel: 'Huỷ phiếu', cancelLabel: 'Quay lại', variant: 'danger' })) return;
-    setOrders(prev => prev.map(o => o.id === order.id
-      ? { ...o, status: 'cancelled', updated_at: new Date().toISOString() }
-      : o
-    ));
-    toast.success('Đã huỷ phiếu xuất');
+    try {
+      const { data } = await api.post(`/export-orders/${order.id}/cancel`);
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, ...data.data, items: o.items } : o));
+      toast.success('Đã huỷ phiếu xuất');
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Không thể huỷ phiếu xuất';
+      toast.error(translateError(msg));
+    }
   };
 
   return (
