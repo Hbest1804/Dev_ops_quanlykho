@@ -10,11 +10,13 @@ export const ImportOrderService = {
     if (!items || items.length === 0) throw BadRequest('Items must not be empty');
 
     for (const item of items) {
+      if (item.productId == null) throw BadRequest('Product ID is required for each item');
       const qty = Number(item.quantity);
       if (!Number.isInteger(qty) || qty <= 0) throw BadRequest('Quantity must be a positive integer');
     }
 
     const productIds = items.map(i => i.productId);
+    if (new Set(productIds).size !== productIds.length) throw BadRequest('Duplicate product IDs are not allowed');
     const found = await ProductRepository.findByIds(productIds);
     const activeIds = new Set(found.filter(p => !p.is_deleted).map(p => p.id));
     const missingId = productIds.find(id => !activeIds.has(id));
