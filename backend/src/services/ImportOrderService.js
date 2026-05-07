@@ -9,7 +9,7 @@ export const ImportOrderService = {
 
   async findById(id) {
     const order = await ImportOrderRepository.findById(id);
-    if (!order) throw NotFound('Phiếu nhập không tồn tại');
+    if (!order) throw NotFound('Import order not found');
     return order;
   },
 
@@ -44,8 +44,7 @@ export const ImportOrderService = {
   },
 
   async confirm(id, userId) {
-    const order = await ImportOrderRepository.findById(id);
-    if (!order) throw NotFound('Import order not found');
+    const order = await ImportOrderService.findById(id);
     if (order.status !== 'pending')
       throw Conflict('Order is not in pending status');
     if (order.items.length === 0)
@@ -55,8 +54,7 @@ export const ImportOrderService = {
   },
 
   async cancel(id) {
-    const order = await ImportOrderRepository.findById(id);
-    if (!order) throw NotFound('Import order not found');
+    const order = await ImportOrderService.findById(id);
     if (order.status !== 'pending')
       throw Conflict('Order is not in pending status');
 
