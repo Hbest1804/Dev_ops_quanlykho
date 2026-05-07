@@ -49,6 +49,8 @@ const EMPTY_FORM: FormData = {
   items: [],
 };
 
+const LIMIT = 20;
+
 const STATUS_FILTER_MAP: Record<string, ImportOrder['status'] | null> = {
   'Trạng thái: Tất cả': null,
   'Chờ xử lý':   'pending',
@@ -108,7 +110,6 @@ export default function StockIn() {
   const fetchOrders = useCallback(async (p = page) => {
     setLoading(true);
     try {
-      const LIMIT = 20;
       const params: Record<string, string | number> = { page: p, limit: LIMIT };
       const st = STATUS_FILTER_MAP[statusFilter];
       if (st) params.status = st;
@@ -194,7 +195,7 @@ export default function StockIn() {
       toast.success('Đã xác nhận phiếu nhập!');
       fetchOrders(1);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Xác nhận thất bại');
+      toast.error(translateError(err?.response?.data?.message) || 'Xác nhận thất bại');
     }
   };
 
@@ -211,7 +212,7 @@ export default function StockIn() {
       toast.success('Đã huỷ phiếu nhập');
       fetchOrders(page);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Hủy phiếu thất bại');
+      toast.error(translateError(err?.response?.data?.message) || 'Hủy phiếu thất bại');
     }
   };
 

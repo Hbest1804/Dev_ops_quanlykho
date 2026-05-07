@@ -1,14 +1,5 @@
 import { pool } from '../db/Pool.js';
 
-// ─── Helper ──────────────────────────────────────────────────────────────────
-
-function attachItems(orders, items) {
-  return orders.map(o => ({
-    ...o,
-    items: items.filter(i => i.import_order_id === o.id),
-  }));
-}
-
 // ─── Repository ──────────────────────────────────────────────────────────────
 
 export const ImportOrderRepository = {
@@ -68,18 +59,7 @@ export const ImportOrderRepository = {
       [...values, limit, offset],
     );
 
-    if (orders.length === 0) return { data: [], pagination: { page, limit, total, totalPages }, statusCounts };
-
-    const { rows: items } = await pool.query(
-      `SELECT id, import_order_id, product_id, quantity, note,
-              snapshot_product_code, snapshot_product_name,
-              snapshot_unit, snapshot_category
-         FROM import_order_items
-        WHERE import_order_id = ANY($1)`,
-      [orders.map(o => o.id)],
-    );
-
-    return { data: attachItems(orders, items), pagination: { page, limit, total, totalPages }, statusCounts };
+    return { data: orders, pagination: { page, limit, total, totalPages }, statusCounts };
   },
 
   async findById(id) {
