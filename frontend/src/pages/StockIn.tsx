@@ -48,7 +48,7 @@ const API_ERROR_MAP: Record<string, string> = {
   'Supplier is required': 'Vui lòng nhập tên nhà cung cấp',
   'Import date is required': 'Vui lòng chọn ngày nhập hàng',
   'Items must not be empty': 'Danh sách sản phẩm không được rỗng',
-  'Quantity must be > 0': 'Số lượng phải lớn hơn 0',
+  'Quantity must be a positive integer': 'Số lượng phải là số nguyên dương',
 };
 
 function translateError(msg: string): string {
