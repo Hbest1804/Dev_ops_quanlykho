@@ -143,7 +143,7 @@ export const ImportOrderRepository = {
         
         for (const item of items) {
           const p = productMap.get(item.product_id);
-          if (!p) throw Object.assign(new Error(`Sản phẩm #${item.product_id} không tồn tại`), { status: 400 });
+          if (!p) throw Object.assign(new Error(`Product #${item.product_id} not found`), { status: 400 });
 
           insertValues.push(`($${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++})`);
           flatParams.push(
@@ -186,7 +186,7 @@ export const ImportOrderRepository = {
         [id],
       );
       if (!order)
-        throw Object.assign(new Error('Phiếu nhập không tồn tại'), { status: 404 });
+        throw Object.assign(new Error('Import order not found'), { status: 404 });
       if (order.status !== 'pending')
         throw Object.assign(new Error('Order is not in pending status'), { status: 409 });
 
@@ -237,7 +237,7 @@ export const ImportOrderRepository = {
         for (const [productId, qty] of aggregatedQuantities.entries()) {
           const p = updatedProductMap.get(productId);
           if (!p) {
-            throw Object.assign(new Error(`Sản phẩm #${productId} không tồn tại hoặc đã bị xóa`), { status: 400 });
+            throw Object.assign(new Error(`Product #${productId} not found or deleted`), { status: 400 });
           }
           currentStockMap.set(productId, p.stock - qty);
         }

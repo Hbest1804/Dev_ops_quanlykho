@@ -45,11 +45,11 @@ export const ImportOrderService = {
 
   async confirm(id, userId) {
     const order = await ImportOrderRepository.findById(id);
-    if (!order) throw NotFound('Phiếu nhập không tồn tại');
+    if (!order) throw NotFound('Import order not found');
     if (order.status !== 'pending')
       throw Conflict('Order is not in pending status');
     if (order.items.length === 0)
-      throw BadRequest('Không thể xác nhận phiếu nhập không có sản phẩm nào');
+      throw BadRequest('Cannot confirm import order with no items');
 
     return ImportOrderRepository.confirm(id, userId);
   },

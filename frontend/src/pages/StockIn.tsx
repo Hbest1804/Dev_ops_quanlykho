@@ -57,13 +57,17 @@ const STATUS_FILTER_MAP: Record<string, ImportOrder['status'] | null> = {
 };
 
 const API_ERROR_MAP: Record<string, string> = {
-  'Supplier is required':               'Vui lòng nhập tên nhà cung cấp',
-  'Import date is required':            'Vui lòng chọn ngày nhập hàng',
-  'Import date is invalid':             'Ngày nhập hàng không hợp lệ',
-  'Items must not be empty':            'Danh sách sản phẩm không được rỗng',
-  'Product ID is required for each item': 'Thiếu sản phẩm ở một hoặc nhiều dòng hàng',
-  'Quantity must be a positive integer': 'Số lượng phải là số nguyên dương',
-  'Duplicate product IDs are not allowed': 'Danh sách chứa sản phẩm trùng lặp',
+  'Supplier is required':                    'Vui lòng nhập tên nhà cung cấp',
+  'Import date is required':                 'Vui lòng chọn ngày nhập hàng',
+  'Import date is invalid':                  'Ngày nhập hàng không hợp lệ',
+  'Items must not be empty':                 'Danh sách sản phẩm không được rỗng',
+  'Product ID is required for each item':    'Thiếu sản phẩm ở một hoặc nhiều dòng hàng',
+  'Quantity must be a positive integer':     'Số lượng phải là số nguyên dương',
+  'Duplicate product IDs are not allowed':   'Danh sách chứa sản phẩm trùng lặp',
+  'Import order not found':                  'Phiếu nhập không tồn tại',
+  'Order is not in pending status':          'Phiếu nhập không ở trạng thái chờ xử lý',
+  'Cannot confirm import order with no items': 'Không thể xác nhận phiếu nhập không có sản phẩm',
+  'One or more products not found or deleted': 'Một hoặc nhiều sản phẩm không tồn tại hoặc đã bị xóa',
 };
 
 function translateError(msg: string): string {
