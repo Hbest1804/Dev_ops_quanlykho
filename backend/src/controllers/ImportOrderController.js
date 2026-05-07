@@ -50,8 +50,8 @@ export const ImportOrderController = {
         status, search,
         from_date: from,
         to_date:   to,
-        page:  page  ? Number(page)  : 1,
-        limit: limit ? Number(limit) : 20,
+        page:  Math.max(1, parseInt(page,  10) || 1),
+        limit: Math.max(1, parseInt(limit, 10) || 20),
       });
       res.json({
         success: true,

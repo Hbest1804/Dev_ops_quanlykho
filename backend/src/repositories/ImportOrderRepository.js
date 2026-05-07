@@ -222,7 +222,7 @@ export const ImportOrderRepository = {
           `UPDATE products p
            SET stock = p.stock + v.quantity
            FROM (VALUES ${updateValues.join(', ')}) AS v(id, quantity)
-           WHERE p.id = v.id
+           WHERE p.id = v.id AND p.is_deleted = FALSE
            RETURNING p.id, p.stock`,
           updateParams
         );

@@ -26,7 +26,8 @@ export const ImportOrderService = {
     for (const item of items) {
       if (!item.product_id)
         throw BadRequest('Product ID is required for each item');
-      if (!item.quantity || Number(item.quantity) <= 0)
+      const qty = Number(item.quantity);
+      if (!Number.isInteger(qty) || qty <= 0)
         throw BadRequest('Quantity must be a positive integer');
     }
 
