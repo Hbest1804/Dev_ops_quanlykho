@@ -37,6 +37,17 @@ type ImportOrder = {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
+const API_ERROR_MAP: Record<string, string> = {
+  'Import order not found':                    'Phiếu nhập không tồn tại',
+  'Order is not in pending status':            'Phiếu nhập không ở trạng thái chờ xử lý',
+  'Cannot confirm import order with no items': 'Không thể xác nhận phiếu nhập không có sản phẩm',
+};
+
+function translateError(msg?: string): string {
+  if (!msg) return '';
+  return API_ERROR_MAP[msg] ?? msg;
+}
+
 const STATUS_MAP = {
   pending:   { label: 'Chờ xử lý', classes: 'bg-orange-100 text-orange-800' },
   confirmed: { label: 'Đã duyệt',  classes: 'bg-green-100  text-green-800'  },
@@ -82,7 +93,7 @@ export default function StockInDetail() {
       setOrder(prev => prev ? { ...prev, status: 'confirmed' } : prev);
       toast.success('Đã xác nhận phiếu nhập!');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Xác nhận thất bại');
+      toast.error(translateError(err?.response?.data?.message) || 'Xác nhận thất bại');
     } finally {
       setActionLoading(false);
     }
@@ -104,7 +115,7 @@ export default function StockInDetail() {
       setOrder(prev => prev ? { ...prev, status: 'cancelled' } : prev);
       toast.success('Đã huỷ phiếu nhập');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Hủy phiếu thất bại');
+      toast.error(translateError(err?.response?.data?.message) || 'Hủy phiếu thất bại');
     } finally {
       setActionLoading(false);
     }
