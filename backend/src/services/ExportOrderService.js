@@ -2,7 +2,7 @@ import { pool } from '../db/Pool.js';
 import { ExportOrderRepository } from '../repositories/ExportOrderRepository.js';
 import { ProductRepository } from '../repositories/ProductRepository.js';
 import { StockTransactionRepository } from '../repositories/StockTransactionRepository.js';
-import { BadRequest, NotFound, UnprocessableEntity } from '../utils/AppError.js';
+import { BadRequest, Conflict, NotFound, UnprocessableEntity } from '../utils/AppError.js';
 
 const VALID_REASONS = new Set(['sale', 'internal', 'damaged']);
 
@@ -47,9 +47,9 @@ export const ExportOrderService = {
       await client.query('BEGIN');
 
       const order = await ExportOrderRepository.findById(id, client);
-      if (!order) throw NotFound('Không tìm thấy phiếu xuất');
+      if (!order) throw NotFound('Export order not found');
       if (order.status !== 'pending')
-        throw BadRequest('Chỉ có thể xác nhận phiếu xuất ở trạng thái chờ xác nhận');
+        throw Conflict('Order is not in pending status');
 
       const items = await ExportOrderRepository.findItemsByOrderId(id, client);
       if (!items || items.length === 0)
@@ -67,7 +67,7 @@ export const ExportOrderService = {
         if (!product)
           throw BadRequest(`Sản phẩm (ID: ${item.product_id}) không tồn tại`);
         if (product.stock < item.quantity)
-          throw BadRequest(`Sản phẩm "${product.name}" không đủ tồn kho (Hiện tại: ${product.stock}, Yêu cầu: ${item.quantity})`);
+          throw UnprocessableEntity('Insufficient stock at confirmation time');
 
         stockUpdates.push({ id: product.id, change: -item.quantity });
         transactions.push({

@@ -178,26 +178,57 @@ describe('ExportOrderService Unit Tests', () => {
       expect(mockClient.release).toHaveBeenCalled();
     });
 
-    it('UT-EXPORT-CONFIRM-002: Không đủ tồn kho → 400, ROLLBACK', async () => {
+    it('UT-EXP-CONFIRM-002: Tồn kho không đủ tại thời điểm confirm → 422, ROLLBACK', async () => {
       ExportOrderRepository.findById.mockResolvedValue(mockOrder({ id: 1 }));
       ExportOrderRepository.findItemsByOrderId.mockResolvedValue([
-        { product_id: 10, quantity: 100 },
+        { product_id: 10, quantity: 100, snapshot_product_code: 'P1', snapshot_product_name: 'Prod 1', snapshot_unit: 'Cái' },
       ]);
       ProductRepository.findManyByIdsForUpdate.mockResolvedValue([
-        { id: 10, name: 'Sản phẩm X', stock: 10 },
+        { id: 10, name: 'Sản phẩm X', stock: 3 },
       ]);
 
       await expect(ExportOrderService.confirmExportOrder(1, 1))
-        .rejects.toMatchObject({ message: expect.stringContaining('không đủ tồn kho') });
+        .rejects.toMatchObject({ status: 422, message: 'Insufficient stock at confirmation time' });
 
       expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
     });
 
-    it('UT-EXPORT-CONFIRM-003: Phiếu không tồn tại → 404', async () => {
+    it('UT-EXP-CONFIRM-003: Phiếu đã confirmed → 409', async () => {
+      ExportOrderRepository.findById.mockResolvedValue(mockOrder({ id: 1, status: 'confirmed' }));
+
+      await expect(ExportOrderService.confirmExportOrder(1, 1))
+        .rejects.toMatchObject({ status: 409, message: 'Order is not in pending status' });
+
+      expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+    });
+
+    it('UT-EXP-CONFIRM-004: Phiếu không tồn tại → 404', async () => {
       ExportOrderRepository.findById.mockResolvedValue(null);
 
       await expect(ExportOrderService.confirmExportOrder(1, 1))
-        .rejects.toMatchObject({ status: 404, message: 'Không tìm thấy phiếu xuất' });
+        .rejects.toMatchObject({ status: 404, message: 'Export order not found' });
+    });
+
+    it('UT-EXP-CONFIRM-005: Tồn kho đúng bằng số lượng xuất → thành công, stock = 0', async () => {
+      ExportOrderRepository.findById.mockResolvedValue(mockOrder({ id: 1 }));
+      ExportOrderRepository.findItemsByOrderId.mockResolvedValue([
+        { product_id: 10, quantity: 5, snapshot_product_code: 'P1', snapshot_product_name: 'Prod 1', snapshot_unit: 'Cái' },
+      ]);
+      ProductRepository.findManyByIdsForUpdate.mockResolvedValue([
+        { id: 10, name: 'Prod 1', stock: 5 },
+      ]);
+      ProductRepository.updateMultipleStocks.mockResolvedValue([]);
+      StockTransactionRepository.createMany.mockResolvedValue([]);
+      ExportOrderRepository.updateStatus.mockResolvedValue(mockOrder({ id: 1, status: 'confirmed' }));
+
+      const result = await ExportOrderService.confirmExportOrder(1, 1);
+
+      expect(result.status).toBe('confirmed');
+      expect(ProductRepository.updateMultipleStocks).toHaveBeenCalledWith(
+        [{ id: 10, change: -5 }],
+        mockClient,
+      );
+      expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
     });
   });
 });
