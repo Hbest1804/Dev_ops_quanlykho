@@ -13,9 +13,10 @@ export const ExportOrderController = {
 
   async confirm(req, res, next) {
     try {
-      const { id } = req.params;
+      const id = parseInt(req.params.id, 10);
+      if (!id) return res.status(400).json({ success: false, message: 'Invalid export order ID' });
       const order = await ExportOrderService.confirmExportOrder(id, req.user.sub);
-      res.status(200).json({ success: true, message: 'Xác nhận phiếu xuất thành công', data: order });
+      res.status(200).json({ success: true, message: 'Export order confirmed', data: order });
     } catch (err) { next(err); }
   },
 };
