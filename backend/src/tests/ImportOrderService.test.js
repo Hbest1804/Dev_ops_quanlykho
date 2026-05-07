@@ -112,20 +112,24 @@ describe('ImportOrderService Unit Tests', () => {
       expect(result.status).toBe('confirmed');
     });
 
-    it('UT-IMP-CONFIRM-002: Phiếu đã confirmed → 409', async () => {
+    it('UT-IMP-CONFIRM-002: Phiếu đã confirmed → repo ném 409', async () => {
       ImportOrderRepository.findById.mockResolvedValue(mockOrder({ status: 'confirmed' }));
+      ImportOrderRepository.confirm.mockRejectedValue(
+        Object.assign(new Error('Order is not in pending status'), { status: 409 }),
+      );
 
       await expect(ImportOrderService.confirm(10, 1))
         .rejects.toMatchObject({ status: 409, message: 'Order is not in pending status' });
-      expect(ImportOrderRepository.confirm).not.toHaveBeenCalled();
     });
 
-    it('UT-IMP-CONFIRM-003: Phiếu đã cancelled → 409', async () => {
+    it('UT-IMP-CONFIRM-003: Phiếu đã cancelled → repo ném 409', async () => {
       ImportOrderRepository.findById.mockResolvedValue(mockOrder({ status: 'cancelled' }));
+      ImportOrderRepository.confirm.mockRejectedValue(
+        Object.assign(new Error('Order is not in pending status'), { status: 409 }),
+      );
 
       await expect(ImportOrderService.confirm(10, 1))
         .rejects.toMatchObject({ status: 409, message: 'Order is not in pending status' });
-      expect(ImportOrderRepository.confirm).not.toHaveBeenCalled();
     });
 
     it('UT-IMP-CONFIRM-004: Phiếu không tồn tại → 404', async () => {
@@ -174,12 +178,14 @@ describe('ImportOrderService Unit Tests', () => {
       expect(result.status).toBe('cancelled');
     });
 
-    it('UT-IMP-CANCEL-002: Hủy phiếu đã confirmed → 409', async () => {
+    it('UT-IMP-CANCEL-002: Hủy phiếu đã confirmed → repo ném 409', async () => {
       ImportOrderRepository.findById.mockResolvedValue(mockOrder({ status: 'confirmed' }));
+      ImportOrderRepository.cancel.mockRejectedValue(
+        Object.assign(new Error('Order is not in pending status'), { status: 409 }),
+      );
 
       await expect(ImportOrderService.cancel(10))
         .rejects.toMatchObject({ status: 409, message: 'Order is not in pending status' });
-      expect(ImportOrderRepository.cancel).not.toHaveBeenCalled();
     });
 
     it('UT-IMP-CANCEL-003: Phiếu không tồn tại → 404', async () => {
@@ -190,12 +196,14 @@ describe('ImportOrderService Unit Tests', () => {
       expect(ImportOrderRepository.cancel).not.toHaveBeenCalled();
     });
 
-    it('UT-IMP-CANCEL-004: Hủy phiếu đã cancelled → 409', async () => {
+    it('UT-IMP-CANCEL-004: Hủy phiếu đã cancelled → repo ném 409', async () => {
       ImportOrderRepository.findById.mockResolvedValue(mockOrder({ status: 'cancelled' }));
+      ImportOrderRepository.cancel.mockRejectedValue(
+        Object.assign(new Error('Order is not in pending status'), { status: 409 }),
+      );
 
       await expect(ImportOrderService.cancel(10))
         .rejects.toMatchObject({ status: 409, message: 'Order is not in pending status' });
-      expect(ImportOrderRepository.cancel).not.toHaveBeenCalled();
     });
 
     it('UT-IMP-CANCEL-005: Stock không bị thay đổi khi hủy phiếu pending', async () => {

@@ -102,7 +102,7 @@ export const ImportOrderController = {
       const id = parseInt(req.params.id, 10);
       if (!id) return res.status(400).json({ success: false, message: 'Invalid order ID' });
       const order = await ImportOrderService.confirm(id, req.user.sub);
-      res.json({ success: true, message: 'Import order confirmed', data: { id: order.id, status: order.status } });
+      res.json({ success: true, message: 'Import order confirmed', data: toDetailDto(order) });
     } catch (err) { next(err); }
   },
 
@@ -111,7 +111,7 @@ export const ImportOrderController = {
       const id = parseInt(req.params.id, 10);
       if (!id) return res.status(400).json({ success: false, message: 'Invalid order ID' });
       const order = await ImportOrderService.cancel(id);
-      res.json({ success: true, message: 'Import order cancelled', data: { id: order.id, status: order.status } });
+      res.json({ success: true, message: 'Import order cancelled', data: toDetailDto(order) });
     } catch (err) { next(err); }
   },
 };
