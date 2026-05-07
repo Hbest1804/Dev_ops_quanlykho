@@ -83,8 +83,9 @@ export default function StockIn() {
   const [receipts, setReceipts]         = useState<ImportOrder[]>([]);
   const [loading, setLoading]           = useState(true);
   const [submitting, setSubmitting]     = useState(false);
-  const [search, setSearch]             = useState('');
-  const [statusFilter, setStatusFilter] = useState('Trạng thái: Tất cả');
+  const [search, setSearch]               = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilter, setStatusFilter]   = useState('Trạng thái: Tất cả');
   const [fromDate, setFromDate]           = useState('');
   const [toDate, setToDate]               = useState('');
   const [page, setPage]                   = useState(1);
@@ -95,6 +96,13 @@ export default function StockIn() {
   const [formData, setFormData]           = useState<FormData>(EMPTY_FORM);
   const [pickerIdx, setPickerIdx]         = useState<number | null>(null);
 
+  // ── Debounce search ──────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
   // ── Fetch ────────────────────────────────────────────────────────────────
 
   const fetchOrders = useCallback(async (p = page) => {
@@ -104,7 +112,7 @@ export default function StockIn() {
       const params: Record<string, string | number> = { page: p, limit: LIMIT };
       const st = STATUS_FILTER_MAP[statusFilter];
       if (st) params.status = st;
-      if (search.trim()) params.search = search.trim();
+      if (debouncedSearch) params.search = debouncedSearch;
       if (fromDate) params.from = fromDate;
       if (toDate)   params.to   = toDate;
       const { data } = await api.get('/import-orders', { params });
@@ -119,7 +127,7 @@ export default function StockIn() {
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, search, fromDate, toDate]);
+  }, [statusFilter, debouncedSearch, fromDate, toDate]);
 
   useEffect(() => {
     fetchOrders(1);
