@@ -26,8 +26,8 @@ export const ExportOrderRepository = {
     return rows;
   },
 
-  async cancel(id) {
-    const { rows } = await pool.query(
+  async cancel(id, client = pool) {
+    const { rows } = await client.query(
       `UPDATE export_orders
        SET status = 'cancelled', updated_at = NOW()
        WHERE id = $1 AND status = 'pending'

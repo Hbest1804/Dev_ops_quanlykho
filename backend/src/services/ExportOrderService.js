@@ -41,7 +41,7 @@ export const ExportOrderService = {
     return ExportOrderRepository.createWithItems({ reason, exportDate, note, userId }, repoItems);
   },
 
-  async cancelExportOrder(id) {
+  async cancelExportOrder(id, userId) {
     const order = await ExportOrderRepository.findById(id);
     if (!order) throw NotFound('Export order not found');
     if (order.status !== 'pending') throw Conflict('Order is not in pending status');
