@@ -1,20 +1,25 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, CheckCircle, XCircle, X, Trash2, Check } from 'lucide-react';
+import { Plus, Search, CheckCircle, XCircle, X, Trash2 } from 'lucide-react';
 import CustomSelect from '../component/CustomSelect';
 import DatePicker from '../component/DatePicker';
+import ProductPickerModal from '../component/ProductPickerModal';
 import { useConfirm } from '../component/useConfirm';
-import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { MOCK_EXPORT_ORDERS, DEFAULT_REASON_OPTIONS, REASON_VALUES, getReasonLabel, type ExportOrder } from '../data/stockOutMock';
-import { MOCK_PRODUCTS } from '../data/stockInMock';
+import api from '../lib/api';
+import { MOCK_EXPORT_ORDERS, REASON_VALUES, getReasonLabel, type ExportOrder } from '../data/stockOutMock';
+
+type Product = {
+  id: number;
+  code: string;
+  name: string;
+  unit: string;
+  category: string;
+  stock: number;
+};
 
 type FormItem = {
-  product_id: number;
-  snapshot_product_code: string;
-  snapshot_product_name: string;
-  snapshot_unit: string;
-  snapshot_category: string;
+  product: Product | null;
   quantity: string;
   note: string;
 };
@@ -33,51 +38,47 @@ const EMPTY_FORM: FormData = {
   items: [],
 };
 
+const REASON_OPTIONS = ['Bán hàng', 'Sử dụng nội bộ', 'Hàng hỏng'];
+
+const STATUS_FILTER_MAP: Record<string, ExportOrder['status'] | null> = {
+  'Trạng thái: Tất cả': null,
+  'Chờ xử lý': 'pending',
+  'Đã xác nhận': 'confirmed',
+  'Đã huỷ': 'cancelled',
+};
+
+const API_ERROR_MAP: Record<string, string> = {
+  'Export date is required': 'Vui lòng chọn ngày xuất hàng',
+  'Items must not be empty': 'Danh sách sản phẩm không được rỗng',
+  'Quantity must be a positive integer': 'Số lượng phải là số nguyên dương',
+  'Reason must be sale|internal|damaged': 'Lý do xuất không hợp lệ',
+};
+
+function translateError(msg: string): string {
+  if (msg.startsWith('Insufficient stock')) return msg;
+  return API_ERROR_MAP[msg] ?? msg;
+}
+
 export default function StockOut() {
   const navigate = useNavigate();
   const { confirm, dialog } = useConfirm();
-  const { profile } = useAuth();
-  const isAdmin = profile?.role === 'admin';
 
   const [orders, setOrders] = useState<ExportOrder[]>(MOCK_EXPORT_ORDERS);
-  const [loading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Trạng thái: Tất cả');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
-  const [reasons, setReasons] = useState<string[]>(DEFAULT_REASON_OPTIONS);
-  const [isAddingReason, setIsAddingReason] = useState(false);
-  const [newReasonInput, setNewReasonInput] = useState('');
+  const [pickerIdx, setPickerIdx] = useState<number | null>(null);
 
   const closeModal = () => {
     setIsModalOpen(false);
     setFormData(EMPTY_FORM);
-    setIsAddingReason(false);
-    setNewReasonInput('');
-  };
-
-  const handleAddReason = () => {
-    const label = newReasonInput.trim();
-    if (!label) return;
-    if (reasons.some(r => r.toLowerCase() === label.toLowerCase())) {
-      toast.error('Lý do này đã tồn tại');
-      return;
-    }
-    if (label.length > 20) {
-      toast.error('Lý do không được quá 20 ký tự');
-      return;
-    }
-    const updated = [...reasons, label];
-    setReasons(updated);
-    setFormData(f => ({ ...f, reason: label }));
-    setIsAddingReason(false);
-    setNewReasonInput('');
-    toast.success(`Đã thêm lý do "${label}"`);
   };
 
   const addItem = () => setFormData(f => ({
     ...f,
-    items: [...f.items, { product_id: 0, snapshot_product_code: '', snapshot_product_name: '', snapshot_unit: '', snapshot_category: '', quantity: '', note: '' }],
+    items: [...f.items, { product: null, quantity: '', note: '' }],
   }));
 
   const removeItem = (idx: number) => setFormData(f => ({
@@ -89,18 +90,6 @@ export default function StockOut() {
     ...f,
     items: f.items.map((item, i) => i === idx ? { ...item, ...patch } : item),
   }));
-
-  const selectProduct = (idx: number, productId: number) => {
-    const p = MOCK_PRODUCTS.find(p => p.id === productId);
-    if (!p) return;
-    updateItem(idx, {
-      product_id: p.id,
-      snapshot_product_code: p.code,
-      snapshot_product_name: p.name,
-      snapshot_unit: p.unit,
-      snapshot_category: p.category,
-    });
-  };
 
   const handleConfirm = async (id: number) => {
     if (!await confirm({ title: 'Xác nhận phiếu xuất', message: 'Tồn kho sẽ được cập nhật sau khi xác nhận.', confirmLabel: 'Xác nhận', variant: 'primary' })) return;
@@ -114,49 +103,50 @@ export default function StockOut() {
     toast.success('Đã huỷ phiếu xuất');
   };
 
-  const handleCreate = (e: FormEvent) => {
+  const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
     if (!formData.export_date) { toast.error('Vui lòng chọn ngày xuất hàng'); return; }
+    if (formData.items.length === 0) { toast.error('Danh sách sản phẩm không được rỗng'); return; }
     for (const item of formData.items) {
-      if (!item.product_id) { toast.error('Vui lòng chọn sản phẩm cho tất cả các dòng hàng'); return; }
+      if (!item.product) { toast.error('Vui lòng chọn sản phẩm cho tất cả các dòng hàng'); return; }
       if (!item.quantity || parseInt(item.quantity) <= 0) { toast.error('Số lượng phải lớn hơn 0'); return; }
     }
-    const now = new Date().toISOString();
-    const orderId = Date.now();
-    const newOrder: ExportOrder = {
-      id: orderId,
-      code: `PX${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
-      reason: REASON_VALUES[formData.reason] ?? formData.reason,
-      status: 'pending',
-      export_date: formData.export_date,
-      note: formData.note.trim(),
-      created_by: 1,
-      confirmed_by: null,
-      confirmed_at: null,
-      created_at: now,
-      updated_at: now,
-      items: formData.items.map((item, idx) => ({
-        id: orderId + idx + 1,
-        export_order_id: orderId,
-        product_id: item.product_id,
-        quantity: parseInt(item.quantity),
-        note: item.note.trim(),
-        snapshot_product_code: item.snapshot_product_code,
-        snapshot_product_name: item.snapshot_product_name,
-        snapshot_unit: item.snapshot_unit,
-        snapshot_category: item.snapshot_category,
-      })),
-    };
-    setOrders([newOrder, ...orders]);
-    toast.success('Đã tạo phiếu xuất mới');
-    closeModal();
-  };
 
-  const STATUS_FILTER_MAP: Record<string, ExportOrder['status'] | null> = {
-    'Trạng thái: Tất cả': null,
-    'Chờ xử lý': 'pending',
-    'Đã xác nhận': 'confirmed',
-    'Đã huỷ': 'cancelled',
+    setSubmitting(true);
+    try {
+      const { data } = await api.post('/export-orders', {
+        reason: REASON_VALUES[formData.reason] ?? formData.reason,
+        exportDate: formData.export_date,
+        note: formData.note.trim() || null,
+        items: formData.items.map(item => ({
+          productId: item.product!.id,
+          quantity: parseInt(item.quantity),
+          note: item.note.trim() || null,
+        })),
+      });
+      const newOrder: ExportOrder = {
+        ...data.data,
+        items: formData.items.map((item, idx) => ({
+          id: Date.now() + idx,
+          export_order_id: data.data.id,
+          product_id: item.product!.id,
+          quantity: parseInt(item.quantity),
+          note: item.note.trim() || '',
+          snapshot_product_code: item.product!.code,
+          snapshot_product_name: item.product!.name,
+          snapshot_unit: item.product!.unit,
+          snapshot_category: item.product!.category,
+        })),
+      };
+      setOrders(prev => [newOrder, ...prev]);
+      toast.success('Đã tạo phiếu xuất mới');
+      closeModal();
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Không thể tạo phiếu xuất';
+      toast.error(translateError(msg));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const filteredOrders = orders.filter(o => {
@@ -232,9 +222,7 @@ export default function StockOut() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e5eeff] text-sm">
-              {loading ? (
-                <tr><td colSpan={6} className="py-8 text-center text-slate-500">Đang tải phiếu xuất...</td></tr>
-              ) : filteredOrders.length === 0 ? (
+              {filteredOrders.length === 0 ? (
                 <tr><td colSpan={6} className="py-8 text-center text-slate-500">Không tìm thấy phiếu xuất.</td></tr>
               ) : filteredOrders.map((o) => {
                 const totalQty = o.items.reduce((acc, item) => acc + item.quantity, 0);
@@ -290,43 +278,12 @@ export default function StockOut() {
               <div className="p-6 flex flex-col gap-5 overflow-y-auto flex-1">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium text-slate-700">Lý do xuất *</label>
-                      {isAdmin && !isAddingReason && (
-                        <button
-                          type="button"
-                          onClick={() => setIsAddingReason(true)}
-                          className="flex items-center gap-1 text-xs text-[#0058be] hover:text-[#2170e4] cursor-pointer"
-                        >
-                          <Plus size={12} /> Thêm lý do
-                        </button>
-                      )}
-                    </div>
+                    <label className="text-sm font-medium text-slate-700">Lý do xuất *</label>
                     <CustomSelect
                       value={formData.reason}
                       onChange={v => setFormData({ ...formData, reason: v })}
-                      options={reasons}
+                      options={REASON_OPTIONS}
                     />
-                    {isAdmin && isAddingReason && (
-                      <div className="flex gap-2 mt-1">
-                        <input
-                          type="text"
-                          value={newReasonInput}
-                          onChange={e => setNewReasonInput(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddReason(); } if (e.key === 'Escape') { setIsAddingReason(false); setNewReasonInput(''); } }}
-                          placeholder="Tên lý do mới... (tối đa 20 ký tự)"
-                          maxLength={20}
-                          className="flex-1 px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg focus:border-[#0058be] outline-none"
-                          autoFocus
-                        />
-                        <button type="button" onClick={handleAddReason} className="p-1.5 bg-[#0058be] hover:bg-[#2170e4] text-white rounded-lg cursor-pointer transition-colors">
-                          <Check size={14} />
-                        </button>
-                        <button type="button" onClick={() => { setIsAddingReason(false); setNewReasonInput(''); }} className="p-1.5 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-lg cursor-pointer transition-colors">
-                          <X size={14} />
-                        </button>
-                      </div>
-                    )}
                   </div>
                   <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
                     <label className="text-sm font-medium text-slate-700">Ngày xuất hàng *</label>
@@ -351,10 +308,14 @@ export default function StockOut() {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium text-slate-700">
-                      Danh sách sản phẩm
+                      Danh sách sản phẩm *
                       {formData.items.length > 0 && <span className="ml-1.5 text-xs font-normal text-slate-400">({formData.items.length} dòng)</span>}
                     </label>
-                    <button type="button" onClick={addItem} className="flex items-center gap-1 text-xs font-medium text-[#0058be] hover:text-[#2170e4] cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={addItem}
+                      className="flex items-center gap-1 text-xs font-medium text-[#0058be] hover:text-[#2170e4] cursor-pointer"
+                    >
                       <Plus size={14} /> Thêm sản phẩm
                     </button>
                   </div>
@@ -379,22 +340,27 @@ export default function StockOut() {
                           {formData.items.map((item, idx) => (
                             <tr key={idx}>
                               <td className="py-2 px-3">
-                                <select
-                                  value={item.product_id || ''}
-                                  onChange={e => selectProduct(idx, Number(e.target.value))}
-                                  className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm focus:border-[#0058be] outline-none cursor-pointer bg-white"
-                                >
-                                  <option value="" disabled>Chọn sản phẩm...</option>
-                                  {MOCK_PRODUCTS.map(p => (
-                                    <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
-                                  ))}
-                                </select>
-                                {item.snapshot_unit && (
-                                  <p className="text-xs text-slate-400 mt-0.5">ĐVT: {item.snapshot_unit} · {item.snapshot_category}</p>
+                                {item.product ? (
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <p className="font-medium text-slate-800">{item.product.code} — {item.product.name}</p>
+                                      <p className="text-xs text-slate-400 mt-0.5">ĐVT: {item.product.unit} · {item.product.category} · Tồn: {item.product.stock.toLocaleString()}</p>
+                                    </div>
+                                    <button type="button" onClick={() => setPickerIdx(idx)} className="text-xs text-[#0058be] hover:underline shrink-0 cursor-pointer mt-0.5">Đổi</button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPickerIdx(idx)}
+                                    className="w-full text-left px-2 py-1.5 border border-dashed border-slate-300 rounded text-sm text-slate-400 hover:border-[#0058be] hover:text-[#0058be] transition-colors cursor-pointer"
+                                  >
+                                    + Chọn sản phẩm
+                                  </button>
                                 )}
                               </td>
                               <td className="py-2 px-3">
                                 <input
+                                  required
                                   type="number"
                                   min="1"
                                   value={item.quantity}
@@ -428,19 +394,29 @@ export default function StockOut() {
 
               <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between shrink-0">
                 <p className="text-xs text-slate-400">
-                  {formData.items.length === 0
-                    ? 'Có thể thêm sản phẩm sau khi tạo phiếu'
-                    : `${formData.items.length} dòng hàng · ${formData.items.reduce((s, i) => s + (parseInt(i.quantity) || 0), 0).toLocaleString()} sản phẩm`}
+                  {formData.items.length === 0 ? 'Thêm ít nhất 1 sản phẩm' : `${formData.items.length} dòng hàng · ${formData.items.reduce((s, i) => s + (parseInt(i.quantity) || 0), 0).toLocaleString()} sản phẩm`}
                 </p>
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={closeModal} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-lg cursor-pointer">Huỷ bỏ</button>
-                  <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg cursor-pointer">Tạo phiếu xuất</button>
+                  <button type="submit" disabled={submitting} className="px-4 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg cursor-pointer disabled:opacity-60">
+                    {submitting ? 'Đang tạo...' : 'Tạo phiếu xuất'}
+                  </button>
                 </div>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      <ProductPickerModal
+        open={pickerIdx !== null}
+        onClose={() => setPickerIdx(null)}
+        onSelect={product => {
+          if (pickerIdx !== null) updateItem(pickerIdx, { product });
+          setPickerIdx(null);
+        }}
+        disableOutOfStock
+      />
     </div>
   );
 }

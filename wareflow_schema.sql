@@ -98,6 +98,8 @@ CREATE TABLE import_order_items (
 );
 
 
+CREATE SEQUENCE export_order_code_seq START 1;
+
 -- ── 6. export_orders ─────────────────────────────────────────
 CREATE TABLE export_orders (
     id           SERIAL          PRIMARY KEY,
