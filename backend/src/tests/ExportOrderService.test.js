@@ -8,9 +8,11 @@ import { pool } from '../db/Pool.js';
 vi.mock('../repositories/ExportOrderRepository.js', () => ({
   ExportOrderRepository: {
     createWithItems:       vi.fn(),
+    findById:              vi.fn(),
     findByIdForUpdate:     vi.fn(),
     findItemsByOrderId:    vi.fn(),
     updateStatus:          vi.fn(),
+    cancel:                vi.fn(),
   },
 }));
 
@@ -229,6 +231,53 @@ describe('ExportOrderService Unit Tests', () => {
         mockClient,
       );
       expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
+    });
+  });
+
+  describe('cancelExportOrder()', () => {
+    it('UT-EXP-CANCEL-001: Hủy phiếu pending thành công → status cancelled', async () => {
+      ExportOrderRepository.findById.mockResolvedValue(mockOrder({ id: 1 }));
+      ExportOrderRepository.cancel.mockResolvedValue(mockOrder({ id: 1, status: 'cancelled' }));
+
+      const result = await ExportOrderService.cancelExportOrder(1);
+
+      expect(result.status).toBe('cancelled');
+      expect(ExportOrderRepository.cancel).toHaveBeenCalledWith(1);
+    });
+
+    it('UT-EXP-CANCEL-002: Hủy phiếu đã confirmed → 409', async () => {
+      ExportOrderRepository.findById.mockResolvedValue(mockOrder({ id: 1, status: 'confirmed' }));
+
+      await expect(ExportOrderService.cancelExportOrder(1))
+        .rejects.toMatchObject({ status: 409, message: 'Order is not in pending status' });
+
+      expect(ExportOrderRepository.cancel).not.toHaveBeenCalled();
+    });
+
+    it('UT-EXP-CANCEL-003: Phiếu không tồn tại → 404', async () => {
+      ExportOrderRepository.findById.mockResolvedValue(null);
+
+      await expect(ExportOrderService.cancelExportOrder(1))
+        .rejects.toMatchObject({ status: 404, message: 'Export order not found' });
+    });
+
+    it('UT-EXP-CANCEL-004: Stock KHÔNG bị thay đổi khi hủy phiếu pending', async () => {
+      ExportOrderRepository.findById.mockResolvedValue(mockOrder({ id: 1 }));
+      ExportOrderRepository.cancel.mockResolvedValue(mockOrder({ id: 1, status: 'cancelled' }));
+
+      await ExportOrderService.cancelExportOrder(1);
+
+      expect(ProductRepository.updateMultipleStocks).not.toHaveBeenCalled();
+      expect(StockTransactionRepository.createMany).not.toHaveBeenCalled();
+    });
+
+    it('UT-EXP-CANCEL-005: Hủy phiếu đã hủy → 409', async () => {
+      ExportOrderRepository.findById.mockResolvedValue(mockOrder({ id: 1, status: 'cancelled' }));
+
+      await expect(ExportOrderService.cancelExportOrder(1))
+        .rejects.toMatchObject({ status: 409, message: 'Order is not in pending status' });
+
+      expect(ExportOrderRepository.cancel).not.toHaveBeenCalled();
     });
   });
 });

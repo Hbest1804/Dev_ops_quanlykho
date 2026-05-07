@@ -21,4 +21,12 @@ router.put(
   ExportOrderController.confirm
 );
 
+// POST /api/export-orders/:id/cancel — Hủy phiếu xuất (admin & warehouse_staff)
+router.post(
+  '/:id/cancel',
+  authenticate,
+  authorize('admin', 'warehouse_staff'),
+  ExportOrderController.cancel
+);
+
 export default router;
