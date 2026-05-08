@@ -3,10 +3,10 @@ import { ExportOrderService } from '../services/ExportOrderService.js';
 export const ExportOrderController = {
   async getAll(req, res, next) {
     try {
-      const { status, reason, from, to } = req.query;
+      const { status, reason, from, to, search } = req.query;
       const page  = Math.max(1, parseInt(req.query.page,  10) || 1);
       const limit = Math.max(1, parseInt(req.query.limit, 10) || 20);
-      const result = await ExportOrderService.getAll({ status, reason, from, to, page, limit });
+      const result = await ExportOrderService.getAll({ status, reason, from, to, search, page, limit });
       res.status(200).json({ success: true, data: result });
     } catch (err) { next(err); }
   },

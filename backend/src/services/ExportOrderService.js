@@ -50,10 +50,10 @@ export const ExportOrderService = {
     return toDetailDto(order);
   },
 
-  async getAll({ status, reason, from, to, page, limit }) {
+  async getAll({ status, reason, from, to, search, page, limit }) {
     const [rows, total] = await Promise.all([
-      ExportOrderRepository.findAll({ status, reason, from, to, page, limit }),
-      ExportOrderRepository.count({ status, reason, from, to }),
+      ExportOrderRepository.findAll({ status, reason, from, to, search, page, limit }),
+      ExportOrderRepository.count({ status, reason, from, to, search }),
     ]);
     return { items: rows.map(toListItemDto), total };
   },
@@ -93,7 +93,7 @@ export const ExportOrderService = {
   },
 
   async cancelExportOrder(id, userId) {
-    const cancelled = await ExportOrderRepository.cancel(id);
+    const cancelled = await ExportOrderRepository.cancel(id, userId);
     if (cancelled) return cancelled;
 
     const order = await ExportOrderRepository.findById(id);
