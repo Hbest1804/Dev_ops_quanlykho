@@ -14,15 +14,15 @@ function buildQuery({ from, to, category }) {
 
 const BASE_CTE = `
   WITH os AS (
-    SELECT product_id, SUM(quantity)::int AS opening_stock
+    SELECT product_id, SUM(quantity) AS opening_stock
     FROM stock_transactions
     WHERE created_at < $1::date
     GROUP BY product_id
   ),
   pt AS (
     SELECT product_id,
-           SUM(CASE WHEN type = 'import' THEN quantity  ELSE 0 END)::int AS total_import,
-           SUM(CASE WHEN type = 'export' THEN ABS(quantity) ELSE 0 END)::int AS total_export
+           SUM(CASE WHEN type = 'import' THEN quantity  ELSE 0 END) AS total_import,
+           SUM(CASE WHEN type = 'export' THEN ABS(quantity) ELSE 0 END) AS total_export
     FROM stock_transactions
     WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')
     GROUP BY product_id
@@ -62,7 +62,7 @@ export const ReportRepository = {
 
     const { rows } = await pool.query(
       `${BASE_CTE}
-       SELECT COUNT(*)::int AS total
+       SELECT COUNT(*) AS total
        FROM products p
        LEFT JOIN os ON os.product_id = p.id
        LEFT JOIN pt ON pt.product_id = p.id
@@ -72,6 +72,40 @@ export const ReportRepository = {
               OR COALESCE(pt.total_export,  0) > 0)`,
       values
     );
-    return rows[0].total;
+    return Number(rows[0].total);
+  },
+
+  async findTotals({ from, to, category }) {
+    const values = [from, to];
+    let i = 3;
+    const catFilter = category ? `AND p.category = $${i++}` : '';
+    if (category) values.push(category);
+
+    const { rows } = await pool.query(
+      `WITH os_agg AS (
+         SELECT COALESCE(SUM(st.quantity), 0) AS opening_total
+         FROM stock_transactions st
+         JOIN products p ON p.id = st.product_id AND p.is_deleted = FALSE ${catFilter}
+         WHERE st.created_at < $1::date
+       ),
+       pt_agg AS (
+         SELECT
+           COALESCE(SUM(CASE WHEN st.type = 'import' THEN st.quantity ELSE 0 END), 0) AS total_import,
+           COALESCE(SUM(CASE WHEN st.type = 'export' THEN ABS(st.quantity) ELSE 0 END), 0) AS total_export
+         FROM stock_transactions st
+         JOIN products p ON p.id = st.product_id AND p.is_deleted = FALSE ${catFilter}
+         WHERE st.created_at >= $1::date AND st.created_at < ($2::date + INTERVAL '1 day')
+       )
+       SELECT pt_agg.total_import,
+              pt_agg.total_export,
+              os_agg.opening_total + pt_agg.total_import - pt_agg.total_export AS total_closing
+       FROM pt_agg, os_agg`,
+      values
+    );
+    return {
+      totalImport:  Number(rows[0].total_import),
+      totalExport:  Number(rows[0].total_export),
+      totalClosing: Number(rows[0].total_closing),
+    };
   },
 };

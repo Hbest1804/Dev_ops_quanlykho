@@ -20,11 +20,10 @@ export default function Dashboard() {
       .then(({ data }) => setTotalProducts(data.data.total))
       .catch(() => {});
 
-    api.get('/reports/summary', { params: { from: today, to: today, limit: '500' } })
+    api.get('/reports/summary', { params: { from: today, to: today, limit: '1' } })
       .then(({ data }) => {
-        const items = data.data.items as { totalImport: number; totalExport: number }[];
-        setTodayImport(items.reduce((s, r) => s + r.totalImport, 0));
-        setTodayExport(items.reduce((s, r) => s + r.totalExport, 0));
+        setTodayImport(data.data.totals.totalImport);
+        setTodayExport(data.data.totals.totalExport);
       })
       .catch(() => {});
   }, []);
