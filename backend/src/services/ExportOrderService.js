@@ -17,6 +17,8 @@ function toDetailDto(order) {
     createdBy:   order.created_by_name ?? null,
     confirmedBy: order.confirmed_by_name ?? null,
     confirmedAt: order.confirmed_at ?? null,
+    cancelledBy: order.cancelled_by_name ?? null,
+    cancelledAt: order.cancelled_at ?? null,
     createdAt:   order.created_at,
     updatedAt:   order.updated_at,
     items: order.items.map(i => ({

@@ -75,10 +75,12 @@ export const ExportOrderRepository = {
     const { rows: orderRows } = await pool.query(
       `SELECT eo.*,
               u1.name AS created_by_name,
-              u2.name AS confirmed_by_name
+              u2.name AS confirmed_by_name,
+              u3.name AS cancelled_by_name
        FROM export_orders eo
        LEFT JOIN users u1 ON u1.id = eo.created_by
        LEFT JOIN users u2 ON u2.id = eo.confirmed_by
+       LEFT JOIN users u3 ON u3.id = eo.cancelled_by
        WHERE eo.id = $1`,
       [id]
     );
