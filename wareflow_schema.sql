@@ -113,6 +113,8 @@ CREATE TABLE export_orders (
     created_by   INTEGER         NOT NULL REFERENCES users(id),
     confirmed_by INTEGER         REFERENCES users(id),
     confirmed_at TIMESTAMP,
+    cancelled_by INTEGER         REFERENCES users(id),
+    cancelled_at TIMESTAMP,
     created_at   TIMESTAMP       NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMP       NOT NULL DEFAULT NOW()
 );

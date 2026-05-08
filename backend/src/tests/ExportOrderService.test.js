@@ -244,7 +244,7 @@ describe('ExportOrderService Unit Tests', () => {
       const result = await ExportOrderService.cancelExportOrder(1, 1);
 
       expect(result.status).toBe('cancelled');
-      expect(ExportOrderRepository.cancel).toHaveBeenCalledWith(1);
+      expect(ExportOrderRepository.cancel).toHaveBeenCalledWith(1, 1);
       expect(ExportOrderRepository.findById).not.toHaveBeenCalled();
     });
 

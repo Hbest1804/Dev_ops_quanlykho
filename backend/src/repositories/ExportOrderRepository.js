@@ -26,10 +26,11 @@ export const ExportOrderRepository = {
     return rows;
   },
 
-  async count({ status, reason, from, to }) {
+  async count({ status, reason, from, to, search }) {
     const conditions = [];
     const values = [];
     let i = 1;
+    if (search) { conditions.push(`code ILIKE $${i++}`); values.push(`%${search}%`); }
     if (status) { conditions.push(`status = $${i++}`); values.push(status); }
     if (reason) { conditions.push(`reason = $${i++}`); values.push(reason); }
     if (from)   { conditions.push(`export_date >= $${i++}`); values.push(from); }
@@ -42,10 +43,11 @@ export const ExportOrderRepository = {
     return rows[0].total;
   },
 
-  async findAll({ status, reason, from, to, page = 1, limit = 20 }) {
+  async findAll({ status, reason, from, to, search, page = 1, limit = 20 }) {
     const conditions = [];
     const values = [];
     let i = 1;
+    if (search) { conditions.push(`eo.code ILIKE $${i++}`); values.push(`%${search}%`); }
     if (status) { conditions.push(`eo.status = $${i++}`); values.push(status); }
     if (reason) { conditions.push(`eo.reason = $${i++}`); values.push(reason); }
     if (from)   { conditions.push(`eo.export_date >= $${i++}`); values.push(from); }
@@ -90,13 +92,13 @@ export const ExportOrderRepository = {
     return { ...orderRows[0], items: itemRows };
   },
 
-  async cancel(id, client = pool) {
+  async cancel(id, cancelledBy, client = pool) {
     const { rows } = await client.query(
       `UPDATE export_orders
-       SET status = 'cancelled', updated_at = NOW()
+       SET status = 'cancelled', cancelled_by = $2, cancelled_at = NOW(), updated_at = NOW()
        WHERE id = $1 AND status = 'pending'
        RETURNING *`,
-      [id]
+      [id, cancelledBy]
     );
     return rows[0] ?? null;
   },
