@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, CheckCircle, XCircle, X, Trash2 } from 'lucide-react';
 import CustomSelect from '../component/CustomSelect';
@@ -7,7 +7,9 @@ import ProductPickerModal from '../component/ProductPickerModal';
 import { useConfirm } from '../component/useConfirm';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
-import { MOCK_EXPORT_ORDERS, REASON_VALUES, getReasonLabel, type ExportOrder } from '../data/stockOutMock';
+import { REASON_VALUES, getReasonLabel, type ExportOrderListItem } from '../data/stockOutMock';
+
+const LIMIT = 20;
 
 type Product = {
   id: number;
@@ -40,7 +42,7 @@ const EMPTY_FORM: FormData = {
 
 const REASON_OPTIONS = ['Bán hàng', 'Sử dụng nội bộ', 'Hàng hỏng'];
 
-const STATUS_FILTER_MAP: Record<string, ExportOrder['status'] | null> = {
+const STATUS_FILTER_MAP: Record<string, ExportOrderListItem['status'] | null> = {
   'Trạng thái: Tất cả': null,
   'Chờ xử lý': 'pending',
   'Đã xác nhận': 'confirmed',
@@ -74,13 +76,39 @@ export default function StockOut() {
   const navigate = useNavigate();
   const { confirm, dialog } = useConfirm();
 
-  const [orders, setOrders] = useState<ExportOrder[]>(MOCK_EXPORT_ORDERS);
+  const [orders, setOrders] = useState<ExportOrderListItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Trạng thái: Tất cả');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
   const [pickerIdx, setPickerIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const status = STATUS_FILTER_MAP[statusFilter];
+      const params: Record<string, string> = { page: '1', limit: String(LIMIT) };
+      if (status) params.status = status;
+      const { data } = await api.get('/export-orders', { params });
+      setOrders(data.data.items);
+      setTotal(data.data.total);
+    } catch {
+      toast.error('Không thể tải danh sách phiếu xuất');
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
   const closeModal = () => {
     setIsModalOpen(false);
@@ -105,8 +133,8 @@ export default function StockOut() {
   const handleConfirm = async (id: number) => {
     if (!await confirm({ title: 'Xác nhận phiếu xuất', message: 'Tồn kho sẽ được cập nhật sau khi xác nhận.', confirmLabel: 'Xác nhận', variant: 'primary' })) return;
     try {
-      const { data } = await api.put(`/export-orders/${id}/confirm`);
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, ...data.data, items: o.items } : o));
+      await api.put(`/export-orders/${id}/confirm`);
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'confirmed' as const } : o));
       toast.success('Đã xác nhận phiếu xuất!');
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'Không thể xác nhận phiếu xuất';
@@ -117,8 +145,8 @@ export default function StockOut() {
   const handleCancel = async (id: number) => {
     if (!await confirm({ title: 'Huỷ phiếu xuất', message: 'Bạn có chắc muốn huỷ phiếu xuất này? Hành động không thể hoàn tác.', confirmLabel: 'Huỷ phiếu', cancelLabel: 'Quay lại', variant: 'danger' })) return;
     try {
-      const { data } = await api.post(`/export-orders/${id}/cancel`);
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, ...data.data, items: o.items } : o));
+      await api.post(`/export-orders/${id}/cancel`);
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'cancelled' as const } : o));
       toast.success('Đã huỷ phiếu xuất');
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'Không thể huỷ phiếu xuất';
@@ -137,7 +165,7 @@ export default function StockOut() {
 
     setSubmitting(true);
     try {
-      const { data } = await api.post('/export-orders', {
+      await api.post('/export-orders', {
         reason: REASON_VALUES[formData.reason] ?? formData.reason,
         exportDate: formData.export_date,
         note: formData.note.trim() || null,
@@ -147,9 +175,9 @@ export default function StockOut() {
           note: item.note.trim() || null,
         })),
       });
-      setOrders(prev => [data.data, ...prev]);
       toast.success('Đã tạo phiếu xuất mới');
       closeModal();
+      fetchOrders();
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'Không thể tạo phiếu xuất';
       toast.error(translateError(msg));
@@ -158,11 +186,10 @@ export default function StockOut() {
     }
   };
 
-  const filteredOrders = orders.filter(o => {
-    const matchesSearch = o.code.toLowerCase().includes(search.toLowerCase()) || getReasonLabel(o.reason).toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = !STATUS_FILTER_MAP[statusFilter] || o.status === STATUS_FILTER_MAP[statusFilter];
-    return matchesSearch && matchesStatus;
-  });
+  const filteredOrders = orders.filter(o =>
+    o.code.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    getReasonLabel(o.reason).toLowerCase().includes(debouncedSearch.toLowerCase())
+  );
 
   return (
     <div className="space-y-6 flex flex-col flex-1">
@@ -231,11 +258,11 @@ export default function StockOut() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e5eeff] text-sm">
-              {filteredOrders.length === 0 ? (
+              {loading ? (
+                <tr><td colSpan={6} className="py-8 text-center text-slate-400">Đang tải...</td></tr>
+              ) : filteredOrders.length === 0 ? (
                 <tr><td colSpan={6} className="py-8 text-center text-slate-500">Không tìm thấy phiếu xuất.</td></tr>
-              ) : filteredOrders.map((o) => {
-                const totalQty = o.items.reduce((acc, item) => acc + item.quantity, 0);
-                return (
+              ) : filteredOrders.map((o) => (
                   <tr key={o.id} onClick={() => navigate(`/stock-out/${o.id}`)} className="hover:bg-[#F1F5F9] transition-colors group cursor-pointer">
                     <td className="py-3 px-4 font-medium text-[#0058be]">{o.code}</td>
                     <td className="py-3 px-4">
@@ -248,8 +275,8 @@ export default function StockOut() {
                         {getReasonLabel(o.reason)}
                       </span>
                     </td>
-                    <td className="py-3 px-4 font-medium">{new Date(o.export_date).toLocaleDateString('vi-VN')}</td>
-                    <td className="py-3 px-4 text-right font-medium">{totalQty.toLocaleString()}</td>
+                    <td className="py-3 px-4 font-medium">{new Date(o.exportDate).toLocaleDateString('vi-VN')}</td>
+                    <td className="py-3 px-4 text-right font-medium">{o.totalQuantity.toLocaleString()}</td>
                     <td className="py-3 px-4 text-center">
                       <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium uppercase ${
                         o.status === 'pending' ? 'bg-[#fed7aa] text-[#9a3412]' :
@@ -266,8 +293,7 @@ export default function StockOut() {
                       </div>
                     </td>
                   </tr>
-                );
-              })}
+              ))}
             </tbody>
           </table>
         </div>

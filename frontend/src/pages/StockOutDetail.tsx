@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, Package, Calendar, User, FileText, Clock, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { MOCK_EXPORT_ORDERS, getReasonLabel, type ExportOrder } from '../data/stockOutMock';
+import { getReasonLabel, type ExportOrderDetail } from '../data/stockOutMock';
 import { useConfirm } from '../component/useConfirm';
 import api from '../lib/api';
 
@@ -17,11 +17,6 @@ const API_ERROR_MAP: Record<string, string> = {
 function translateError(msg: string): string {
   return API_ERROR_MAP[msg] ?? msg;
 }
-
-const MOCK_USERS: Record<number, string> = {
-  1: 'Nguyễn Văn A',
-  2: 'Trần Thị B',
-};
 
 const STATUS_MAP = {
   pending:   { label: 'Chờ xử lý', classes: 'bg-orange-100 text-orange-800' },
@@ -39,9 +34,48 @@ export default function StockOutDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { confirm, dialog } = useConfirm();
-  const [orders, setOrders] = useState<ExportOrder[]>(MOCK_EXPORT_ORDERS);
+  const [order, setOrder] = useState<ExportOrderDetail | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const order = orders.find(o => o.id === Number(id));
+  useEffect(() => {
+    if (!id) return;
+    api.get(`/export-orders/${id}`)
+      .then(({ data }) => setOrder(data.data))
+      .catch(() => setOrder(null))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const handleConfirm = async () => {
+    if (!order) return;
+    if (!await confirm({ title: 'Xác nhận phiếu xuất', message: 'Tồn kho sẽ được cập nhật sau khi xác nhận.', confirmLabel: 'Xác nhận', variant: 'primary' })) return;
+    try {
+      await api.put(`/export-orders/${order.id}/confirm`);
+      const { data } = await api.get(`/export-orders/${order.id}`);
+      setOrder(data.data);
+      toast.success('Đã xác nhận phiếu xuất!');
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Không thể xác nhận phiếu xuất';
+      toast.error(translateError(msg));
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!order) return;
+    if (!await confirm({ title: 'Huỷ phiếu xuất', message: 'Bạn có chắc muốn huỷ phiếu xuất này? Hành động không thể hoàn tác.', confirmLabel: 'Huỷ phiếu', cancelLabel: 'Quay lại', variant: 'danger' })) return;
+    try {
+      await api.post(`/export-orders/${order.id}/cancel`);
+      const { data } = await api.get(`/export-orders/${order.id}`);
+      setOrder(data.data);
+      toast.success('Đã huỷ phiếu xuất');
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Không thể huỷ phiếu xuất';
+      toast.error(translateError(msg));
+    }
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64 text-slate-400">Đang tải...</div>;
+  }
 
   if (!order) {
     return (
@@ -54,30 +88,6 @@ export default function StockOutDetail() {
 
   const totalQty = order.items.reduce((acc, i) => acc + i.quantity, 0);
   const status = STATUS_MAP[order.status];
-
-  const handleConfirm = async () => {
-    if (!await confirm({ title: 'Xác nhận phiếu xuất', message: 'Tồn kho sẽ được cập nhật sau khi xác nhận.', confirmLabel: 'Xác nhận', variant: 'primary' })) return;
-    try {
-      const { data } = await api.put(`/export-orders/${order.id}/confirm`);
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, ...data.data, items: o.items } : o));
-      toast.success('Đã xác nhận phiếu xuất!');
-    } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'Không thể xác nhận phiếu xuất';
-      toast.error(translateError(msg));
-    }
-  };
-
-  const handleCancel = async () => {
-    if (!await confirm({ title: 'Huỷ phiếu xuất', message: 'Bạn có chắc muốn huỷ phiếu xuất này? Hành động không thể hoàn tác.', confirmLabel: 'Huỷ phiếu', cancelLabel: 'Quay lại', variant: 'danger' })) return;
-    try {
-      const { data } = await api.post(`/export-orders/${order.id}/cancel`);
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, ...data.data, items: o.items } : o));
-      toast.success('Đã huỷ phiếu xuất');
-    } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'Không thể huỷ phiếu xuất';
-      toast.error(translateError(msg));
-    }
-  };
 
   return (
     <div className="space-y-6 w-full flex-1 flex flex-col min-h-0">
@@ -96,7 +106,7 @@ export default function StockOutDetail() {
                 {status.label}
               </span>
             </div>
-            <p className="text-sm text-slate-500 mt-0.5">Tạo lúc {new Date(order.created_at).toLocaleString('vi-VN')}</p>
+            <p className="text-sm text-slate-500 mt-0.5">Tạo lúc {new Date(order.createdAt).toLocaleString('vi-VN')}</p>
           </div>
         </div>
 
@@ -130,7 +140,7 @@ export default function StockOutDetail() {
               <Calendar size={16} className="text-slate-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-slate-500">Ngày xuất hàng</p>
-                <p className="text-sm font-medium text-slate-800">{new Date(order.export_date).toLocaleDateString('vi-VN')}</p>
+                <p className="text-sm font-medium text-slate-800">{new Date(order.exportDate).toLocaleDateString('vi-VN')}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -155,42 +165,44 @@ export default function StockOutDetail() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
           <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Xử lý & Thời gian</h2>
           <div className="flex flex-col gap-3">
-            <div className="flex items-start gap-3">
-              <User size={16} className="text-slate-400 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs text-slate-500">Người tạo</p>
-                <p className="text-sm font-medium text-slate-800">{MOCK_USERS[order.created_by] ?? `User #${order.created_by}`}</p>
+            {order.createdBy && (
+              <div className="flex items-start gap-3">
+                <User size={16} className="text-slate-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs text-slate-500">Người tạo</p>
+                  <p className="text-sm font-medium text-slate-800">{order.createdBy}</p>
+                </div>
               </div>
-            </div>
+            )}
             <div className="flex items-start gap-3">
               <Clock size={16} className="text-slate-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-slate-500">Ngày tạo</p>
-                <p className="text-sm font-medium text-slate-800">{new Date(order.created_at).toLocaleString('vi-VN')}</p>
+                <p className="text-sm font-medium text-slate-800">{new Date(order.createdAt).toLocaleString('vi-VN')}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <Clock size={16} className="text-slate-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-slate-500">Cập nhật lần cuối</p>
-                <p className="text-sm font-medium text-slate-800">{new Date(order.updated_at).toLocaleString('vi-VN')}</p>
+                <p className="text-sm font-medium text-slate-800">{new Date(order.updatedAt).toLocaleString('vi-VN')}</p>
               </div>
             </div>
-            {order.confirmed_by && (
+            {order.confirmedBy && (
               <div className="flex items-start gap-3">
                 <CheckCircle size={16} className="text-green-500 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs text-slate-500">Người xác nhận</p>
-                  <p className="text-sm font-medium text-slate-800">{MOCK_USERS[order.confirmed_by] ?? `User #${order.confirmed_by}`}</p>
+                  <p className="text-sm font-medium text-slate-800">{order.confirmedBy}</p>
                 </div>
               </div>
             )}
-            {order.confirmed_at && (
+            {order.confirmedAt && (
               <div className="flex items-start gap-3">
                 <Clock size={16} className="text-green-500 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-xs text-slate-500">Xác nhận lúc</p>
-                  <p className="text-sm font-medium text-slate-800">{new Date(order.confirmed_at).toLocaleString('vi-VN')}</p>
+                  <p className="text-sm font-medium text-slate-800">{new Date(order.confirmedAt).toLocaleString('vi-VN')}</p>
                 </div>
               </div>
             )}
@@ -230,12 +242,12 @@ export default function StockOutDetail() {
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
                 {order.items.map((item, idx) => (
-                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                  <tr key={item.productId} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3 px-4 text-slate-400">{idx + 1}</td>
-                    <td className="py-3 px-4 font-medium text-[#0058be]">{item.snapshot_product_code}</td>
-                    <td className="py-3 px-4 font-medium text-slate-800">{item.snapshot_product_name}</td>
-                    <td className="py-3 px-4 text-slate-500">{item.snapshot_category}</td>
-                    <td className="py-3 px-4 text-slate-500">{item.snapshot_unit}</td>
+                    <td className="py-3 px-4 font-medium text-[#0058be]">{item.productCode}</td>
+                    <td className="py-3 px-4 font-medium text-slate-800">{item.productName}</td>
+                    <td className="py-3 px-4 text-slate-500">{item.category}</td>
+                    <td className="py-3 px-4 text-slate-500">{item.unit}</td>
                     <td className="py-3 px-4 text-right font-semibold text-slate-800">{item.quantity.toLocaleString()}</td>
                     <td className="py-3 px-4 text-slate-400">{item.note || '—'}</td>
                   </tr>
