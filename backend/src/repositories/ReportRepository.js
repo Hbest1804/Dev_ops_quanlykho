@@ -1,55 +1,77 @@
 import { pool } from '../db/Pool.js';
 
+function buildQuery({ from, to, category }) {
+  const conditions = [];
+  const values = [from, to];
+  let i = 3;
+
+  conditions.push('p.is_deleted = FALSE');
+  if (category) { conditions.push(`p.category = $${i++}`); values.push(category); }
+
+  const where = `WHERE ${conditions.join(' AND ')}`;
+  return { where, values, nextIndex: i };
+}
+
+const BASE_CTE = `
+  WITH os AS (
+    SELECT product_id, SUM(quantity)::int AS opening_stock
+    FROM stock_transactions
+    WHERE created_at < $1::date
+    GROUP BY product_id
+  ),
+  pt AS (
+    SELECT product_id,
+           SUM(CASE WHEN type = 'import' THEN quantity  ELSE 0 END)::int AS total_import,
+           SUM(CASE WHEN type = 'export' THEN ABS(quantity) ELSE 0 END)::int AS total_export
+    FROM stock_transactions
+    WHERE created_at >= $1::date AND created_at < ($2::date + INTERVAL '1 day')
+    GROUP BY product_id
+  )
+`;
+
 export const ReportRepository = {
-  async getInventoryReport(fromDate, toDate, category) {
-    let query = `
-      SELECT 
-        p.id, 
-        p.code, 
-        p.name, 
-        p.category, 
-        p.unit,
-        COALESCE(os.opening_stock, 0)::int AS opening_stock,
-        COALESCE(p_trans.total_import, 0)::int AS total_import,
-        COALESCE(p_trans.total_export, 0)::int AS total_export
-      FROM products p
-      LEFT JOIN (
-        SELECT product_id, SUM(quantity) as opening_stock
-        FROM stock_transactions
-        WHERE created_at < $1
-        GROUP BY product_id
-      ) os ON p.id = os.product_id
-      LEFT JOIN (
-        SELECT product_id,
-               SUM(CASE WHEN type = 'import' THEN quantity ELSE 0 END) as total_import,
-               SUM(CASE WHEN type = 'export' THEN ABS(quantity) ELSE 0 END) as total_export
-        FROM stock_transactions
-        WHERE created_at >= $1 AND created_at <= $2
-        GROUP BY product_id
-      ) p_trans ON p.id = p_trans.product_id
-      WHERE 1=1
-    `;
-    
-    const values = [fromDate, toDate];
-    let paramIndex = 3;
+  async findSummary({ from, to, category, page = 1, limit = 50 }) {
+    const { where, values, nextIndex: i } = buildQuery({ from, to, category });
+    const offset = (page - 1) * limit;
+    values.push(limit, offset);
 
-    if (category) {
-      query += ` AND p.category = $${paramIndex}`;
-      values.push(category);
-      paramIndex++;
-    }
-
-    // Chỉ xuất hiện nếu có tồn đầu kỳ HOẶC có phát sinh trong kỳ
-    query += `
-      AND (
-        COALESCE(os.opening_stock, 0) > 0 
-        OR COALESCE(p_trans.total_import, 0) > 0 
-        OR COALESCE(p_trans.total_export, 0) > 0
-      )
-      ORDER BY p.code ASC
-    `;
-
-    const { rows } = await pool.query(query, values);
+    const { rows } = await pool.query(
+      `${BASE_CTE}
+       SELECT p.id          AS product_id,
+              p.code        AS product_code,
+              p.name        AS product_name,
+              COALESCE(os.opening_stock, 0) AS opening_stock,
+              COALESCE(pt.total_import,  0) AS total_import,
+              COALESCE(pt.total_export,  0) AS total_export
+       FROM products p
+       LEFT JOIN os ON os.product_id = p.id
+       LEFT JOIN pt ON pt.product_id = p.id
+       ${where}
+         AND (COALESCE(os.opening_stock, 0) > 0
+              OR COALESCE(pt.total_import,  0) > 0
+              OR COALESCE(pt.total_export,  0) > 0)
+       ORDER BY p.code ASC
+       LIMIT $${i} OFFSET $${i + 1}`,
+      values
+    );
     return rows;
-  }
+  },
+
+  async countSummary({ from, to, category }) {
+    const { where, values } = buildQuery({ from, to, category });
+
+    const { rows } = await pool.query(
+      `${BASE_CTE}
+       SELECT COUNT(*)::int AS total
+       FROM products p
+       LEFT JOIN os ON os.product_id = p.id
+       LEFT JOIN pt ON pt.product_id = p.id
+       ${where}
+         AND (COALESCE(os.opening_stock, 0) > 0
+              OR COALESCE(pt.total_import,  0) > 0
+              OR COALESCE(pt.total_export,  0) > 0)`,
+      values
+    );
+    return rows[0].total;
+  },
 };
