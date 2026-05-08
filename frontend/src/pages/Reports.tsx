@@ -1,10 +1,22 @@
-import { useState, useMemo } from 'react';
-import { Download, FileText, ArrowDownToLine, ArrowUpFromLine, Package, ClipboardList } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Download, FileText, ArrowDownToLine, ArrowUpFromLine, Package, TrendingUp } from 'lucide-react';
 import CustomSelect from '../component/CustomSelect';
 import DatePicker from '../component/DatePicker';
 import { exportToExcel, exportToPDF } from '../lib/export';
-import { MOCK_IMPORT_ORDERS } from '../data/stockInMock';
-import { MOCK_EXPORT_ORDERS } from '../data/stockOutMock';
+import toast from 'react-hot-toast';
+import api from '../lib/api';
+
+const LIMIT = 50;
+
+type ReportItem = {
+  productId: number;
+  productCode: string;
+  productName: string;
+  openingStock: number;
+  totalImport: number;
+  totalExport: number;
+  closingStock: number;
+};
 
 const PERIOD_OPTIONS = ['Tuần này', 'Tháng này', 'Quý này', 'Tất cả'];
 
@@ -31,6 +43,17 @@ export default function Reports() {
   const [period, setPeriod] = useState('Tháng này');
   const [dateFrom, setDateFrom] = useState(() => getPeriodDates('Tháng này')[0]);
   const [dateTo, setDateTo] = useState(() => getPeriodDates('Tháng này')[1]);
+  const [items, setItems] = useState<ReportItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [fetched, setFetched] = useState(false);
+
+  const [monthImport,  setMonthImport]  = useState(0);
+  const [monthExport,  setMonthExport]  = useState(0);
+  const [monthClosing, setMonthClosing] = useState(0);
+  const [monthTotal,   setMonthTotal]   = useState(0);
+  const [loadingMonth, setLoadingMonth] = useState(true);
 
   const handlePeriodChange = (p: string) => {
     setPeriod(p);
@@ -39,121 +62,98 @@ export default function Reports() {
     setDateTo(to);
   };
 
-  const reportRows = useMemo(() => {
-    const map = new Map<string, {
-      code: string; name: string; category: string; unit: string;
-      imported: number; exported: number;
-    }>();
-
-    for (const order of MOCK_IMPORT_ORDERS) {
-      if (order.status === 'cancelled') continue;
-      for (const item of order.items) {
-        const key = item.snapshot_product_code;
-        const row = map.get(key) ?? { code: key, name: item.snapshot_product_name, category: item.snapshot_category, unit: item.snapshot_unit, imported: 0, exported: 0 };
-        row.imported += item.quantity;
-        map.set(key, row);
-      }
+  const fetchReport = useCallback(async (targetPage = 1) => {
+    setLoading(true);
+    try {
+      const params: Record<string, string> = {
+        from: dateFrom, to: dateTo,
+        page: String(targetPage), limit: String(LIMIT),
+      };
+      const { data } = await api.get('/reports/summary', { params });
+      setItems(data.data.items);
+      setTotal(data.data.total);
+      setPage(targetPage);
+      setFetched(true);
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Không thể tải báo cáo';
+      toast.error(msg);
+    } finally {
+      setLoading(false);
     }
+  }, [dateFrom, dateTo]);
 
-    for (const order of MOCK_EXPORT_ORDERS) {
-      if (order.status === 'cancelled') continue;
-      for (const item of order.items) {
-        const key = item.snapshot_product_code;
-        const row = map.get(key) ?? { code: key, name: item.snapshot_product_name, category: item.snapshot_category, unit: item.snapshot_unit, imported: 0, exported: 0 };
-        row.exported += item.quantity;
-        map.set(key, row);
-      }
-    }
+  useEffect(() => { fetchReport(1); }, [fetchReport]);
 
-    return Array.from(map.values()).sort((a, b) => (b.imported + b.exported) - (a.imported + a.exported));
+  useEffect(() => {
+    const now = new Date();
+    const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const to = now.toISOString().slice(0, 10);
+    api.get('/reports/summary', { params: { from, to, page: '1', limit: '500' } })
+      .then(({ data }) => {
+        const rows: ReportItem[] = data.data.items;
+        setMonthImport(rows.reduce((s, r) => s + r.totalImport, 0));
+        setMonthExport(rows.reduce((s, r) => s + r.totalExport, 0));
+        setMonthClosing(rows.reduce((s, r) => s + r.closingStock, 0));
+        setMonthTotal(data.data.total);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMonth(false));
   }, []);
 
-  const totalImported = reportRows.reduce((s, r) => s + r.imported, 0);
-  const totalExported = reportRows.reduce((s, r) => s + r.exported, 0);
-  const importOrderCount = MOCK_IMPORT_ORDERS.filter(o => o.status !== 'cancelled').length;
-  const exportOrderCount = MOCK_EXPORT_ORDERS.filter(o => o.status !== 'cancelled').length;
+  const totalPages  = Math.ceil(total / LIMIT);
+  const totalImport  = items.reduce((s, r) => s + r.totalImport,  0);
+  const totalExport  = items.reduce((s, r) => s + r.totalExport,  0);
+  const totalClosing = items.reduce((s, r) => s + r.closingStock, 0);
 
   const handleExportExcel = () => {
-    exportToExcel(reportRows.map(r => ({
-      'Mã SP': r.code,
-      'Tên sản phẩm': r.name,
-      'Danh mục': r.category,
-      'ĐVT': r.unit,
-      'Tổng nhập': r.imported,
-      'Tổng xuất': r.exported,
-      'Chênh lệch': r.imported - r.exported,
+    exportToExcel(items.map(r => ({
+      'Mã SP':        r.productCode,
+      'Tên sản phẩm': r.productName,
+      'Tồn đầu kỳ':   r.openingStock,
+      'Tổng nhập':    r.totalImport,
+      'Tổng xuất':    r.totalExport,
+      'Tồn cuối kỳ':  r.closingStock,
     })), 'BaoCaoTonKho');
   };
 
   return (
     <div className="space-y-6 flex flex-col flex-1">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div>
           <h1 className="text-2xl font-semibold text-[#0b1c30]">Báo cáo thống kê</h1>
           <p className="text-sm text-[#45474c] mt-1">Xem xu hướng tồn kho và kết xuất báo cáo.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={handleExportExcel} className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer">
+          <button onClick={handleExportExcel} disabled={items.length === 0} className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-40">
             <Download size={18} /> Xuất Excel
           </button>
-          <button onClick={exportToPDF} className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer">
+          <button onClick={exportToPDF} disabled={items.length === 0} className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-40">
             <FileText size={18} /> Xuất PDF
           </button>
         </div>
       </div>
 
-      {/* Metric cards */}
+      {/* Summary cards — luôn hiển thị tháng hiện tại */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
-        <div className="bg-white border border-[#E2E8F0] shadow-sm rounded p-5 flex flex-col justify-between h-32 relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#e5eeff] rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-[#45474c] mb-1">Tổng nhập kho</p>
-              <h3 className="text-[32px] font-semibold text-[#0b1c30] leading-none">{totalImported.toLocaleString()}</h3>
+        {[
+          { label: 'Nhập kho tháng này',  value: monthImport,  icon: <ArrowDownToLine size={18} className="text-[#0058be] mt-1 shrink-0" /> },
+          { label: 'Xuất kho tháng này',  value: monthExport,  icon: <ArrowUpFromLine  size={18} className="text-[#0058be] mt-1 shrink-0" /> },
+          { label: 'Tồn cuối tháng này',  value: monthClosing, icon: <Package          size={18} className="text-[#0058be] mt-1 shrink-0" /> },
+          { label: 'Sản phẩm có phát sinh', value: monthTotal, icon: <TrendingUp       size={18} className="text-[#0058be] mt-1 shrink-0" /> },
+        ].map(card => (
+          <div key={card.label} className="bg-white border border-[#E2E8F0] shadow-sm rounded p-5 flex flex-col justify-between h-32 relative overflow-hidden group">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#e5eeff] rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium text-[#45474c] mb-1">{card.label}</p>
+                <h3 className="text-[32px] font-semibold text-[#0b1c30] leading-none">
+                  {loadingMonth ? '...' : card.value.toLocaleString()}
+                </h3>
+              </div>
+              {card.icon}
             </div>
-            <ArrowDownToLine size={18} className="text-[#0058be] mt-1 shrink-0" />
           </div>
-          <p className="text-xs text-slate-400">{importOrderCount} phiếu nhập</p>
-        </div>
-
-        <div className="bg-white border border-[#E2E8F0] shadow-sm rounded p-5 flex flex-col justify-between h-32 relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#e5eeff] rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-[#45474c] mb-1">Tổng xuất kho</p>
-              <h3 className="text-[32px] font-semibold text-[#0b1c30] leading-none">{totalExported.toLocaleString()}</h3>
-            </div>
-            <ArrowUpFromLine size={18} className="text-[#0058be] mt-1 shrink-0" />
-          </div>
-          <p className="text-xs text-slate-400">{exportOrderCount} phiếu xuất</p>
-        </div>
-
-        <div className="bg-white border border-[#E2E8F0] shadow-sm rounded p-5 flex flex-col justify-between h-32 relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#e5eeff] rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-[#45474c] mb-1">Chênh lệch</p>
-              <h3 className={`text-[32px] font-semibold leading-none ${totalImported - totalExported >= 0 ? 'text-[#166534]' : 'text-[#991b1b]'}`}>
-                {totalImported - totalExported >= 0 ? '+' : ''}{(totalImported - totalExported).toLocaleString()}
-              </h3>
-            </div>
-            <Package size={18} className="text-[#0058be] mt-1 shrink-0" />
-          </div>
-          <p className="text-xs text-slate-400">Nhập − Xuất</p>
-        </div>
-
-        <div className="bg-white border border-[#E2E8F0] shadow-sm rounded p-5 flex flex-col justify-between h-32 relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#e5eeff] rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-[#45474c] mb-1">Tổng phiếu</p>
-              <h3 className="text-[32px] font-semibold text-[#0b1c30] leading-none">{importOrderCount + exportOrderCount}</h3>
-            </div>
-            <ClipboardList size={18} className="text-[#0058be] mt-1 shrink-0" />
-          </div>
-          <p className="text-xs text-slate-400">{importOrderCount} nhập · {exportOrderCount} xuất</p>
-        </div>
+        ))}
       </div>
 
       {/* Filter */}
@@ -171,8 +171,12 @@ export default function Reports() {
             <label className="text-xs font-medium text-[#45474c]">Đến ngày</label>
             <DatePicker value={dateTo} onChange={setDateTo} />
           </div>
-          <button className="bg-[#0058be] hover:bg-[#2170e4] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0">
-            Xem báo cáo
+          <button
+            onClick={() => fetchReport(1)}
+            disabled={loading}
+            className="bg-[#0058be] hover:bg-[#2170e4] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-60"
+          >
+            {loading ? 'Đang tải...' : 'Xem báo cáo'}
           </button>
         </div>
       </div>
@@ -180,68 +184,85 @@ export default function Reports() {
       {/* Table */}
       <div className="bg-white border border-[#c5c6cd] rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-[300px]">
         <div className="px-5 py-4 border-b border-[#e5eeff] bg-[#f8f9ff] shrink-0">
-          <h2 className="text-sm font-semibold text-slate-700">Tổng hợp nhập xuất theo sản phẩm</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Chỉ tính phiếu đã xác nhận · {dateFrom} → {dateTo}</p>
+          <h2 className="text-sm font-semibold text-slate-700">Tổng hợp nhập xuất tồn theo sản phẩm</h2>
+          <p className="text-xs text-slate-400 mt-0.5">{fetched ? `${dateFrom} → ${dateTo} · ${total} sản phẩm` : 'Chọn khoảng thời gian và nhấn Xem báo cáo'}</p>
         </div>
-        <div className="overflow-x-auto flex-1">
-          <table className="w-full text-left border-collapse min-w-[700px]">
+        <div className="overflow-x-auto flex-1 min-h-0">
+          <table className="w-full text-left border-collapse min-w-[800px]">
             <thead className="bg-[#e5eeff] sticky top-0 z-10 border-b border-[#c5c6cd]">
               <tr>
                 <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] w-28">Mã SP</th>
                 <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c]">Tên sản phẩm</th>
-                <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] w-36">Danh mục</th>
-                <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] w-16">ĐVT</th>
+                <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-28">Tồn đầu kỳ</th>
                 <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-28">Tổng nhập</th>
                 <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-28">Tổng xuất</th>
-                <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-28">Chênh lệch</th>
+                <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-28">Tồn cuối kỳ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e5eeff] text-sm">
-              {reportRows.length === 0 ? (
-                <tr><td colSpan={7} className="py-12 text-center text-slate-400">Không có dữ liệu trong khoảng thời gian đã chọn.</td></tr>
-              ) : reportRows.map(row => {
-                const diff = row.imported - row.exported;
-                return (
-                  <tr key={row.code} className="hover:bg-[#F1F5F9] transition-colors">
-                    <td className="py-3 px-4 font-medium text-[#0058be]">{row.code}</td>
-                    <td className="py-3 px-4 font-medium text-slate-800">{row.name}</td>
-                    <td className="py-3 px-4 text-slate-500">{row.category}</td>
-                    <td className="py-3 px-4 text-slate-500">{row.unit}</td>
-                    <td className="py-3 px-4 text-right">
-                      <span className="inline-flex items-center gap-1 font-medium text-[#166534]">
-                        <ArrowDownToLine size={13} />
-                        {row.imported.toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <span className="inline-flex items-center gap-1 font-medium text-[#9a3412]">
-                        <ArrowUpFromLine size={13} />
-                        {row.exported.toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right font-semibold">
-                      <span className={diff >= 0 ? 'text-[#166534]' : 'text-[#991b1b]'}>
-                        {diff >= 0 ? '+' : ''}{diff.toLocaleString()}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+              {loading ? (
+                <tr><td colSpan={6} className="py-12 text-center text-slate-400">Đang tải...</td></tr>
+              ) : !fetched ? (
+                <tr><td colSpan={6} className="py-12 text-center text-slate-400">Nhấn "Xem báo cáo" để tải dữ liệu.</td></tr>
+              ) : items.length === 0 ? (
+                <tr><td colSpan={6} className="py-12 text-center text-slate-400">Không có dữ liệu trong khoảng thời gian đã chọn.</td></tr>
+              ) : items.map(row => (
+                <tr key={row.productId} className="hover:bg-[#F1F5F9] transition-colors">
+                  <td className="py-3 px-4 font-medium text-[#0058be]">{row.productCode}</td>
+                  <td className="py-3 px-4 font-medium text-slate-800">{row.productName}</td>
+                  <td className="py-3 px-4 text-right text-slate-600">{row.openingStock.toLocaleString()}</td>
+                  <td className="py-3 px-4 text-right">
+                    <span className="inline-flex items-center gap-1 font-medium text-[#166534]">
+                      <ArrowDownToLine size={13} />{row.totalImport.toLocaleString()}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-right">
+                    <span className="inline-flex items-center gap-1 font-medium text-[#9a3412]">
+                      <ArrowUpFromLine size={13} />{row.totalExport.toLocaleString()}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-right font-semibold text-[#0b1c30]">{row.closingStock.toLocaleString()}</td>
+                </tr>
+              ))}
             </tbody>
-            {reportRows.length > 0 && (
+            {items.length > 0 && (
               <tfoot className="bg-slate-50 border-t border-[#c5c6cd]">
                 <tr className="text-sm font-semibold">
-                  <td colSpan={4} className="py-3 px-4 text-slate-600 text-right">Tổng cộng</td>
-                  <td className="py-3 px-4 text-right text-[#166534]">{totalImported.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right text-[#9a3412]">{totalExported.toLocaleString()}</td>
-                  <td className={`py-3 px-4 text-right ${totalImported - totalExported >= 0 ? 'text-[#166534]' : 'text-[#991b1b]'}`}>
-                    {totalImported - totalExported >= 0 ? '+' : ''}{(totalImported - totalExported).toLocaleString()}
-                  </td>
+                  <td colSpan={2} className="py-3 px-4 text-slate-600 text-right">Tổng cộng (trang này)</td>
+                  <td className="py-3 px-4 text-right text-slate-600">{items.reduce((s, r) => s + r.openingStock, 0).toLocaleString()}</td>
+                  <td className="py-3 px-4 text-right text-[#166534]">{totalImport.toLocaleString()}</td>
+                  <td className="py-3 px-4 text-right text-[#9a3412]">{totalExport.toLocaleString()}</td>
+                  <td className="py-3 px-4 text-right text-[#0b1c30]">{totalClosing.toLocaleString()}</td>
                 </tr>
               </tfoot>
             )}
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="px-4 py-3 border-t border-[#e5eeff] flex items-center justify-between text-sm shrink-0">
+            <span className="text-slate-500">
+              {((page - 1) * LIMIT) + 1}–{Math.min(page * LIMIT, total)} / {total} sản phẩm
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => fetchReport(page - 1)}
+                disabled={page === 1 || loading}
+                className="px-3 py-1.5 border border-[#c5c6cd] rounded text-sm disabled:opacity-40 hover:bg-slate-50 cursor-pointer disabled:cursor-default"
+              >
+                ← Trước
+              </button>
+              <span className="text-slate-500">Trang {page} / {totalPages}</span>
+              <button
+                onClick={() => fetchReport(page + 1)}
+                disabled={page >= totalPages || loading}
+                className="px-3 py-1.5 border border-[#c5c6cd] rounded text-sm disabled:opacity-40 hover:bg-slate-50 cursor-pointer disabled:cursor-default"
+              >
+                Sau →
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
