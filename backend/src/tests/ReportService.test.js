@@ -4,38 +4,66 @@ import { ReportRepository } from '../repositories/ReportRepository.js';
 
 vi.mock('../repositories/ReportRepository.js');
 
-describe('ReportService.getInventoryReport', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+describe('ReportService.getSummary', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('UT-RPT-SUM-001 | correct formula: closingStock = openingStock + totalImport - totalExport', async () => {
+    ReportRepository.findSummary.mockResolvedValue([{
+      product_id: 1, product_code: 'SP001', product_name: 'Bàn phím cơ',
+      opening_stock: 30, total_import: 50, total_export: 25,
+    }]);
+    ReportRepository.countSummary.mockResolvedValue(1);
+
+    const result = await ReportService.getSummary({ from: '2025-06-01', to: '2025-06-30', page: 1, limit: 50 });
+
+    expect(result.period).toEqual({ from: '2025-06-01', to: '2025-06-30' });
+    expect(result.total).toBe(1);
+    const item = result.items[0];
+    expect(item.productId).toBe(1);
+    expect(item.productCode).toBe('SP001');
+    expect(item.productName).toBe('Bàn phím cơ');
+    expect(item.openingStock).toBe(30);
+    expect(item.totalImport).toBe(50);
+    expect(item.totalExport).toBe(25);
+    expect(item.closingStock).toBe(55); // 30 + 50 - 25
   });
 
-  it('UT-REPORT-001 | lấy báo cáo thành công và tính đúng tồn cuối', async () => {
-    const mockRows = [
-      { id: 1, name: 'Prod A', opening_stock: 10, total_import: 5, total_export: 3 },
-      { id: 2, name: 'Prod B', opening_stock: 0, total_import: 10, total_export: 2 }
-    ];
-    ReportRepository.getInventoryReport.mockResolvedValue(mockRows);
+  it('UT-RPT-SUM-002 | missing from → throw 400', async () => {
+    await expect(ReportService.getSummary({ to: '2025-06-30', page: 1, limit: 50 }))
+      .rejects.toMatchObject({ status: 400, message: 'from and to are required' });
+  });
 
-    const result = await ReportService.getInventoryReport({
-      fromDate: '2026-04-01',
-      toDate: '2026-04-30'
+  it('UT-RPT-SUM-003 | missing to → throw 400', async () => {
+    await expect(ReportService.getSummary({ from: '2025-01-01', page: 1, limit: 50 }))
+      .rejects.toMatchObject({ status: 400, message: 'from and to are required' });
+  });
+
+  it('UT-RPT-SUM-004 | no data in period → items: [], total: 0', async () => {
+    ReportRepository.findSummary.mockResolvedValue([]);
+    ReportRepository.countSummary.mockResolvedValue(0);
+
+    const result = await ReportService.getSummary({ from: '2020-01-01', to: '2020-01-31', page: 1, limit: 50 });
+
+    expect(result.items).toEqual([]);
+    expect(result.total).toBe(0);
+  });
+
+  it('UT-RPT-SUM-005 | category filter is passed through to repository', async () => {
+    ReportRepository.findSummary.mockResolvedValue([]);
+    ReportRepository.countSummary.mockResolvedValue(0);
+
+    await ReportService.getSummary({
+      from: '2025-06-01', to: '2025-06-30',
+      category: 'Thiết bị ngoại vi', page: 1, limit: 50,
     });
 
-    expect(result).toHaveLength(2);
-    expect(result[0].closing_stock).toBe(12); // 10 + 5 - 3
-    expect(result[1].closing_stock).toBe(8);  // 0 + 10 - 2
-    expect(ReportRepository.getInventoryReport).toHaveBeenCalledOnce();
-  });
-
-  it('UT-REPORT-002 | lỗi khi thiếu ngày', async () => {
-    await expect(ReportService.getInventoryReport({ fromDate: '2026-01-01' }))
-      .rejects.toMatchObject({ status: 400, message: expect.stringContaining('đầy đủ') });
-  });
-
-  it('UT-REPORT-003 | lỗi khi ngày bắt đầu > ngày kết thúc', async () => {
-    await expect(ReportService.getInventoryReport({ 
-      fromDate: '2026-05-01', 
-      toDate: '2026-04-01' 
-    })).rejects.toMatchObject({ status: 400, message: 'Ngày bắt đầu không được lớn hơn ngày kết thúc' });
+    expect(ReportRepository.findSummary).toHaveBeenCalledWith({
+      from: '2025-06-01', to: '2025-06-30',
+      category: 'Thiết bị ngoại vi', page: 1, limit: 50,
+    });
+    expect(ReportRepository.countSummary).toHaveBeenCalledWith({
+      from: '2025-06-01', to: '2025-06-30',
+      category: 'Thiết bị ngoại vi',
+    });
   });
 });
