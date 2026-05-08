@@ -5,6 +5,12 @@ import { authorize } from '../middlewares/Authorization.js';
 
 const router = Router();
 
+// GET /api/export-orders — Danh sách phiếu xuất
+router.get('/', authenticate, ExportOrderController.getAll);
+
+// GET /api/export-orders/:id — Chi tiết phiếu xuất
+router.get('/:id', authenticate, ExportOrderController.getById);
+
 // POST /api/export-orders — Tạo phiếu xuất (admin & warehouse_staff)
 router.post(
   '/',

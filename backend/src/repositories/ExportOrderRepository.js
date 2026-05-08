@@ -26,13 +26,77 @@ export const ExportOrderRepository = {
     return rows;
   },
 
-  async cancel(id, cancelledBy, client = pool) {
+  async count({ status, reason, from, to }) {
+    const conditions = [];
+    const values = [];
+    let i = 1;
+    if (status) { conditions.push(`status = $${i++}`); values.push(status); }
+    if (reason) { conditions.push(`reason = $${i++}`); values.push(reason); }
+    if (from)   { conditions.push(`export_date >= $${i++}`); values.push(from); }
+    if (to)     { conditions.push(`export_date <= $${i++}`); values.push(to); }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const { rows } = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM export_orders ${where}`,
+      values
+    );
+    return rows[0].total;
+  },
+
+  async findAll({ status, reason, from, to, page = 1, limit = 20 }) {
+    const conditions = [];
+    const values = [];
+    let i = 1;
+    if (status) { conditions.push(`eo.status = $${i++}`); values.push(status); }
+    if (reason) { conditions.push(`eo.reason = $${i++}`); values.push(reason); }
+    if (from)   { conditions.push(`eo.export_date >= $${i++}`); values.push(from); }
+    if (to)     { conditions.push(`eo.export_date <= $${i++}`); values.push(to); }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const offset = (page - 1) * limit;
+    values.push(limit, offset);
+    const { rows } = await pool.query(
+      `SELECT eo.id, eo.code, eo.reason, eo.status, eo.export_date, eo.created_at,
+              u.name AS created_by_name,
+              COALESCE(SUM(eoi.quantity), 0)::int AS total_quantity
+       FROM export_orders eo
+       LEFT JOIN users u ON u.id = eo.created_by
+       LEFT JOIN export_order_items eoi ON eoi.export_order_id = eo.id
+       ${where}
+       GROUP BY eo.id, u.name
+       ORDER BY eo.created_at DESC
+       LIMIT $${i} OFFSET $${i + 1}`,
+      values
+    );
+    return rows;
+  },
+
+  async findByIdWithItems(id) {
+    const { rows: orderRows } = await pool.query(
+      `SELECT eo.*,
+              u1.name AS created_by_name,
+              u2.name AS confirmed_by_name
+       FROM export_orders eo
+       LEFT JOIN users u1 ON u1.id = eo.created_by
+       LEFT JOIN users u2 ON u2.id = eo.confirmed_by
+       WHERE eo.id = $1`,
+      [id]
+    );
+    if (!orderRows[0]) return null;
+    const { rows: itemRows } = await pool.query(
+      `SELECT product_id, quantity, note,
+              snapshot_product_code, snapshot_product_name, snapshot_unit, snapshot_category
+       FROM export_order_items WHERE export_order_id = $1`,
+      [id]
+    );
+    return { ...orderRows[0], items: itemRows };
+  },
+
+  async cancel(id, client = pool) {
     const { rows } = await client.query(
       `UPDATE export_orders
-       SET status = 'cancelled', cancelled_by = $2, cancelled_at = NOW(), updated_at = NOW()
+       SET status = 'cancelled', updated_at = NOW()
        WHERE id = $1 AND status = 'pending'
        RETURNING *`,
-      [id, cancelledBy]
+      [id]
     );
     return rows[0] ?? null;
   },

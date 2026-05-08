@@ -6,7 +6,58 @@ import { BadRequest, Conflict, NotFound, UnprocessableEntity } from '../utils/Ap
 
 const VALID_REASONS = new Set(['sale', 'internal', 'damaged']);
 
+function toDetailDto(order) {
+  return {
+    id:          order.id,
+    code:        order.code,
+    reason:      order.reason,
+    status:      order.status,
+    exportDate:  order.export_date,
+    note:        order.note ?? null,
+    createdBy:   order.created_by_name ?? null,
+    confirmedBy: order.confirmed_by_name ?? null,
+    confirmedAt: order.confirmed_at ?? null,
+    createdAt:   order.created_at,
+    updatedAt:   order.updated_at,
+    items: order.items.map(i => ({
+      productId:   i.product_id,
+      productCode: i.snapshot_product_code,
+      productName: i.snapshot_product_name,
+      quantity:    i.quantity,
+      unit:        i.snapshot_unit,
+      category:    i.snapshot_category,
+      note:        i.note ?? null,
+    })),
+  };
+}
+
+function toListItemDto(order) {
+  return {
+    id:            order.id,
+    code:          order.code,
+    reason:        order.reason,
+    status:        order.status,
+    exportDate:    order.export_date,
+    createdBy:     order.created_by_name ?? null,
+    totalQuantity: order.total_quantity ?? 0,
+  };
+}
+
 export const ExportOrderService = {
+  async getById(id) {
+    const order = await ExportOrderRepository.findByIdWithItems(id);
+    if (!order) throw NotFound('Export order not found');
+    return toDetailDto(order);
+  },
+
+  async getAll({ status, reason, from, to, page, limit }) {
+    const [rows, total] = await Promise.all([
+      ExportOrderRepository.findAll({ status, reason, from, to, page, limit }),
+      ExportOrderRepository.count({ status, reason, from, to }),
+    ]);
+    return { items: rows.map(toListItemDto), total };
+  },
+
   async create({ reason, exportDate, note, items, userId }) {
     if (!VALID_REASONS.has(reason)) throw BadRequest('Reason must be sale|internal|damaged');
     if (!exportDate) throw BadRequest('Export date is required');
@@ -42,7 +93,7 @@ export const ExportOrderService = {
   },
 
   async cancelExportOrder(id, userId) {
-    const cancelled = await ExportOrderRepository.cancel(id, userId);
+    const cancelled = await ExportOrderRepository.cancel(id);
     if (cancelled) return cancelled;
 
     const order = await ExportOrderRepository.findById(id);

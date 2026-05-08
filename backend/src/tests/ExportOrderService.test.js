@@ -7,12 +7,15 @@ import { pool } from '../db/Pool.js';
 
 vi.mock('../repositories/ExportOrderRepository.js', () => ({
   ExportOrderRepository: {
-    createWithItems:       vi.fn(),
-    findById:              vi.fn(),
-    findByIdForUpdate:     vi.fn(),
-    findItemsByOrderId:    vi.fn(),
-    updateStatus:          vi.fn(),
-    cancel:                vi.fn(),
+    createWithItems:    vi.fn(),
+    findById:           vi.fn(),
+    findByIdForUpdate:  vi.fn(),
+    findByIdWithItems:  vi.fn(),
+    findItemsByOrderId: vi.fn(),
+    findAll:            vi.fn(),
+    count:              vi.fn(),
+    updateStatus:       vi.fn(),
+    cancel:             vi.fn(),
   },
 }));
 
@@ -241,7 +244,7 @@ describe('ExportOrderService Unit Tests', () => {
       const result = await ExportOrderService.cancelExportOrder(1, 1);
 
       expect(result.status).toBe('cancelled');
-      expect(ExportOrderRepository.cancel).toHaveBeenCalledWith(1, 1);
+      expect(ExportOrderRepository.cancel).toHaveBeenCalledWith(1);
       expect(ExportOrderRepository.findById).not.toHaveBeenCalled();
     });
 
@@ -276,6 +279,87 @@ describe('ExportOrderService Unit Tests', () => {
 
       await expect(ExportOrderService.cancelExportOrder(1, 1))
         .rejects.toMatchObject({ status: 409, message: 'Order is not in pending status' });
+    });
+  });
+
+  describe('getById()', () => {
+    const mockOrderWithItems = (overrides = {}) => ({
+      ...mockOrder(overrides),
+      export_date: '2025-06-05',
+      note: null,
+      created_by_name: 'Nguyễn Huy',
+      confirmed_by_name: null,
+      cancelled_by_name: null,
+      confirmed_at: null,
+      cancelled_at: null,
+      items: [
+        { product_id: 1, quantity: 5, note: null,
+          snapshot_product_code: 'SP001', snapshot_product_name: 'Bàn phím', snapshot_unit: 'Cái', snapshot_category: 'Điện tử' },
+      ],
+    });
+
+    it('UT-EXP-GET-001: Lấy chi tiết thành công → DTO đúng cấu trúc', async () => {
+      ExportOrderRepository.findByIdWithItems.mockResolvedValue(mockOrderWithItems({ id: 1 }));
+
+      const result = await ExportOrderService.getById(1);
+
+      expect(result).toMatchObject({
+        id: 1, code: 'PX008', reason: 'sale', status: 'pending',
+        exportDate: '2025-06-05', createdBy: 'Nguyễn Huy',
+      });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({
+        productId: 1, productCode: 'SP001', productName: 'Bàn phím', quantity: 5, unit: 'Cái',
+      });
+    });
+
+    it('UT-EXP-GET-002: Phiếu không tồn tại → 404', async () => {
+      ExportOrderRepository.findByIdWithItems.mockResolvedValue(null);
+
+      await expect(ExportOrderService.getById(1))
+        .rejects.toMatchObject({ status: 404, message: 'Export order not found' });
+    });
+  });
+
+  describe('getAll()', () => {
+    it('UT-EXP-LIST-001: Lấy danh sách thành công → { items, total }', async () => {
+      ExportOrderRepository.findAll.mockResolvedValue([
+        { id: 1, code: 'PX001', reason: 'sale', status: 'confirmed',
+          export_date: '2025-06-05', created_by_name: 'Nguyễn Huy', total_quantity: 10 },
+      ]);
+      ExportOrderRepository.count.mockResolvedValue(1);
+
+      const result = await ExportOrderService.getAll({ page: 1, limit: 20 });
+
+      expect(result.total).toBe(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({
+        id: 1, code: 'PX001', status: 'confirmed',
+        exportDate: '2025-06-05', createdBy: 'Nguyễn Huy', totalQuantity: 10,
+      });
+    });
+
+    it('UT-EXP-LIST-002: Danh sách rỗng → { items: [], total: 0 }', async () => {
+      ExportOrderRepository.findAll.mockResolvedValue([]);
+      ExportOrderRepository.count.mockResolvedValue(0);
+
+      const result = await ExportOrderService.getAll({ page: 1, limit: 20 });
+
+      expect(result).toEqual({ items: [], total: 0 });
+    });
+
+    it('UT-EXP-LIST-003: findAll và count nhận đúng filter params', async () => {
+      ExportOrderRepository.findAll.mockResolvedValue([]);
+      ExportOrderRepository.count.mockResolvedValue(0);
+
+      await ExportOrderService.getAll({ status: 'pending', reason: 'sale', from: '2025-01-01', to: '2025-12-31', page: 2, limit: 10 });
+
+      expect(ExportOrderRepository.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'pending', reason: 'sale', from: '2025-01-01', to: '2025-12-31', page: 2, limit: 10 })
+      );
+      expect(ExportOrderRepository.count).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'pending', reason: 'sale' })
+      );
     });
   });
 });
