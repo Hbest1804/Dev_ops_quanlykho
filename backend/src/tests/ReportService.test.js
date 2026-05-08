@@ -13,11 +13,13 @@ describe('ReportService.getSummary', () => {
       opening_stock: 30, total_import: 50, total_export: 25,
     }]);
     ReportRepository.countSummary.mockResolvedValue(1);
+    ReportRepository.findTotals.mockResolvedValue({ totalImport: 50, totalExport: 25, totalClosing: 55 });
 
     const result = await ReportService.getSummary({ from: '2025-06-01', to: '2025-06-30', page: 1, limit: 50 });
 
     expect(result.period).toEqual({ from: '2025-06-01', to: '2025-06-30' });
     expect(result.total).toBe(1);
+    expect(result.totals).toEqual({ totalImport: 50, totalExport: 25, totalClosing: 55 });
     const item = result.items[0];
     expect(item.productId).toBe(1);
     expect(item.productCode).toBe('SP001');
@@ -41,6 +43,7 @@ describe('ReportService.getSummary', () => {
   it('UT-RPT-SUM-004 | no data in period → items: [], total: 0', async () => {
     ReportRepository.findSummary.mockResolvedValue([]);
     ReportRepository.countSummary.mockResolvedValue(0);
+    ReportRepository.findTotals.mockResolvedValue({ totalImport: 0, totalExport: 0, totalClosing: 0 });
 
     const result = await ReportService.getSummary({ from: '2020-01-01', to: '2020-01-31', page: 1, limit: 50 });
 
@@ -51,6 +54,7 @@ describe('ReportService.getSummary', () => {
   it('UT-RPT-SUM-005 | category filter is passed through to repository', async () => {
     ReportRepository.findSummary.mockResolvedValue([]);
     ReportRepository.countSummary.mockResolvedValue(0);
+    ReportRepository.findTotals.mockResolvedValue({ totalImport: 0, totalExport: 0, totalClosing: 0 });
 
     await ReportService.getSummary({
       from: '2025-06-01', to: '2025-06-30',
@@ -62,6 +66,10 @@ describe('ReportService.getSummary', () => {
       category: 'Thiết bị ngoại vi', page: 1, limit: 50,
     });
     expect(ReportRepository.countSummary).toHaveBeenCalledWith({
+      from: '2025-06-01', to: '2025-06-30',
+      category: 'Thiết bị ngoại vi',
+    });
+    expect(ReportRepository.findTotals).toHaveBeenCalledWith({
       from: '2025-06-01', to: '2025-06-30',
       category: 'Thiết bị ngoại vi',
     });

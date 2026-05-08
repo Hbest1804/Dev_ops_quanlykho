@@ -88,12 +88,11 @@ export default function Reports() {
     const now = new Date();
     const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const to = now.toISOString().slice(0, 10);
-    api.get('/reports/summary', { params: { from, to, page: '1', limit: '500' } })
+    api.get('/reports/summary', { params: { from, to, page: '1', limit: '1' } })
       .then(({ data }) => {
-        const rows: ReportItem[] = data.data.items;
-        setMonthImport(rows.reduce((s, r) => s + r.totalImport, 0));
-        setMonthExport(rows.reduce((s, r) => s + r.totalExport, 0));
-        setMonthClosing(rows.reduce((s, r) => s + r.closingStock, 0));
+        setMonthImport(data.data.totals.totalImport);
+        setMonthExport(data.data.totals.totalExport);
+        setMonthClosing(data.data.totals.totalClosing);
         setMonthTotal(data.data.total);
       })
       .catch(() => {})
