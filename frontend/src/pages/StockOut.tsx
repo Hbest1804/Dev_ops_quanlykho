@@ -78,6 +78,7 @@ export default function StockOut() {
 
   const [orders, setOrders] = useState<ExportOrderListItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
@@ -92,12 +93,15 @@ export default function StockOut() {
     return () => clearTimeout(t);
   }, [search]);
 
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
       const status = STATUS_FILTER_MAP[statusFilter];
-      const params: Record<string, string> = { page: '1', limit: String(LIMIT) };
+      const params: Record<string, string> = { page: String(page), limit: String(LIMIT) };
       if (status) params.status = status;
+      if (debouncedSearch) params.search = debouncedSearch;
       const { data } = await api.get('/export-orders', { params });
       setOrders(data.data.items);
       setTotal(data.data.total);
@@ -106,7 +110,7 @@ export default function StockOut() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, debouncedSearch, page]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
@@ -186,10 +190,7 @@ export default function StockOut() {
     }
   };
 
-  const filteredOrders = orders.filter(o =>
-    o.code.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-    getReasonLabel(o.reason).toLowerCase().includes(debouncedSearch.toLowerCase())
-  );
+  const totalPages = Math.ceil(total / LIMIT);
 
   return (
     <div className="space-y-6 flex flex-col flex-1">
@@ -245,7 +246,7 @@ export default function StockOut() {
           </div>
         </div>
 
-        <div className="overflow-x-auto flex-1">
+        <div className="overflow-x-auto flex-1 min-h-0">
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead className="bg-[#e5eeff] sticky top-0 z-10 border-b border-[#c5c6cd]">
               <tr>
@@ -260,9 +261,9 @@ export default function StockOut() {
             <tbody className="divide-y divide-[#e5eeff] text-sm">
               {loading ? (
                 <tr><td colSpan={6} className="py-8 text-center text-slate-400">Đang tải...</td></tr>
-              ) : filteredOrders.length === 0 ? (
+              ) : orders.length === 0 ? (
                 <tr><td colSpan={6} className="py-8 text-center text-slate-500">Không tìm thấy phiếu xuất.</td></tr>
-              ) : filteredOrders.map((o) => (
+              ) : orders.map((o) => (
                   <tr key={o.id} onClick={() => navigate(`/stock-out/${o.id}`)} className="hover:bg-[#F1F5F9] transition-colors group cursor-pointer">
                     <td className="py-3 px-4 font-medium text-[#0058be]">{o.code}</td>
                     <td className="py-3 px-4">
@@ -297,6 +298,31 @@ export default function StockOut() {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="px-4 py-3 border-t border-[#e5eeff] flex items-center justify-between text-sm shrink-0">
+            <span className="text-slate-500">
+              {((page - 1) * LIMIT) + 1}–{Math.min(page * LIMIT, total)} / {total} phiếu
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => p - 1)}
+                disabled={page === 1 || loading}
+                className="px-3 py-1.5 border border-[#c5c6cd] rounded text-sm disabled:opacity-40 hover:bg-slate-50 cursor-pointer disabled:cursor-default"
+              >
+                ← Trước
+              </button>
+              <span className="text-slate-500">Trang {page} / {totalPages}</span>
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={page >= totalPages || loading}
+                className="px-3 py-1.5 border border-[#c5c6cd] rounded text-sm disabled:opacity-40 hover:bg-slate-50 cursor-pointer disabled:cursor-default"
+              >
+                Sau →
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {isModalOpen && (
