@@ -119,6 +119,7 @@ export default function Reports() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
       toast.success(`Xuất file ${format.toUpperCase()} thành công`, { id: t });
     } catch (error: any) {
       toast.error(`Lỗi khi xuất file ${format.toUpperCase()}`, { id: t });

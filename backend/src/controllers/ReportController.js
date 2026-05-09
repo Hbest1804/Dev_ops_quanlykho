@@ -1,4 +1,5 @@
 import { ReportService } from '../services/ReportService.js';
+import { BadRequest } from '../utils/AppError.js';
 
 export const ReportController = {
   async getSummary(req, res, next) {
@@ -63,7 +64,7 @@ export const ReportController = {
         return res.send(buffer);
       }
 
-      throw new Error('Định dạng không hỗ trợ. Chỉ hỗ trợ excel hoặc pdf.');
+      throw BadRequest('Định dạng không hỗ trợ. Chỉ hỗ trợ excel hoặc pdf.');
     } catch (error) {
       next(error);
     }

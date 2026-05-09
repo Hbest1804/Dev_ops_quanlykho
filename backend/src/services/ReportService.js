@@ -2,6 +2,10 @@ import { ReportRepository } from '../repositories/ReportRepository.js';
 import { BadRequest } from '../utils/AppError.js';
 import XLSX from 'xlsx';
 import PDFDocument from 'pdfkit';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function toItemDto(row) {
   const opening = Number(row.opening_stock);
@@ -63,6 +67,21 @@ export const ReportService = {
     return rows;
   },
 
+  async getInventoryReport({ fromDate, toDate, category }) {
+    if (!fromDate || !toDate) throw BadRequest('fromDate and toDate are required');
+    const rows = await ReportRepository.findSummary({ from: fromDate, to: toDate, category, limit: 1000000 });
+    return rows.map(r => ({
+      code: r.product_code,
+      name: r.product_name,
+      category: r.category,
+      unit: r.unit,
+      opening_stock: Number(r.opening_stock),
+      total_import: Number(r.total_import),
+      total_export: Number(r.total_export),
+      closing_stock: Number(r.opening_stock) + Number(r.total_import) - Number(r.total_export),
+    }));
+  },
+
   async exportInventoryExcel({ fromDate, toDate, category }) {
     const data = await this.getInventoryReport({ fromDate, toDate, category });
     
@@ -96,11 +115,14 @@ export const ReportService = {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', err => reject(err));
 
+      const fontRegular = path.join(__dirname, '../../assets/fonts/Roboto-Regular.ttf');
+      const fontBold = path.join(__dirname, '../../assets/fonts/Roboto-Bold.ttf');
+
       // Header
-      doc.fontSize(18).text('BÁO CÁO TỔNG HỢP NHẬP XUẤT TỒN', { align: 'center' });
+      doc.font(fontBold).fontSize(18).text('BÁO CÁO TỔNG HỢP NHẬP XUẤT TỒN', { align: 'center' });
       doc.moveDown();
-      doc.fontSize(12).text(`Thời gian: ${fromDate} đến ${toDate}`, { align: 'center' });
-      if (category) doc.text(`Danh mục: ${category}`, { align: 'center' });
+      doc.font(fontRegular).fontSize(12).text(`Thời gian: ${fromDate} đến ${toDate}`, { align: 'center' });
+      if (category) doc.font(fontRegular).text(`Danh mục: ${category}`, { align: 'center' });
       doc.moveDown();
 
       // Table Header (Very basic implementation)
@@ -109,7 +131,7 @@ export const ReportService = {
       const headers = ['Mã SP', 'Tên sản phẩm', 'ĐVT', 'Đầu', 'Nhập', 'Xuất', 'Cuối'];
       
       let x = 30;
-      doc.fontSize(10).font('Helvetica-Bold');
+      doc.fontSize(10).font(fontBold);
       headers.forEach((h, i) => {
         doc.text(h, x, tableTop);
         x += colWidths[i];
@@ -119,7 +141,7 @@ export const ReportService = {
 
       // Rows
       let y = tableTop + 25;
-      doc.font('Helvetica');
+      doc.font(fontRegular);
       data.forEach(r => {
         if (y > 750) {
           doc.addPage();

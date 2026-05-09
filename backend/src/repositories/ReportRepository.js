@@ -40,6 +40,8 @@ export const ReportRepository = {
        SELECT p.id          AS product_id,
               p.code        AS product_code,
               p.name        AS product_name,
+              p.category    AS category,
+              p.unit        AS unit,
               COALESCE(os.opening_stock, 0) AS opening_stock,
               COALESCE(pt.total_import,  0) AS total_import,
               COALESCE(pt.total_export,  0) AS total_export
