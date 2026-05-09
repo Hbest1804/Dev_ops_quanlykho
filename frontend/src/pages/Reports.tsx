@@ -37,7 +37,6 @@ const getPeriodDates = (period: string): [string, string] => {
   }
   return ['2024-01-01', to];
 };
-<<<<<<< HEAD
 
 export default function Reports() {
   const [period, setPeriod] = useState('Tháng này');
@@ -46,16 +45,9 @@ export default function Reports() {
   const [items, setItems] = useState<ReportItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-=======
-const Reports = () => {
-  const [period, setPeriod] = useState('Tháng này');
-  const [[dateFrom, dateTo], setDates] = useState(getPeriodDates('Tháng này'));
-  const [data, setData] = useState<any[]>([]);
->>>>>>> 70e3aa7 (fix(frontend): restore missing component definition in Reports.tsx)
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
 
-<<<<<<< HEAD
   const [monthImport,  setMonthImport]  = useState(0);
   const [monthExport,  setMonthExport]  = useState(0);
   const [monthClosing, setMonthClosing] = useState(0);
@@ -70,17 +62,6 @@ const Reports = () => {
   };
 
   const fetchReport = useCallback(async (targetPage = 1) => {
-=======
-  const setDateFrom = (d: string) => setDates([d, dateTo]);
-  const setDateTo = (d: string) => setDates([dateFrom, d]);
-
-  const handlePeriodChange = (p: string) => {
-    setPeriod(p);
-    setDates(getPeriodDates(p));
-  };
-
-  const fetchReport = async () => {
->>>>>>> 70e3aa7 (fix(frontend): restore missing component definition in Reports.tsx)
     setLoading(true);
     try {
       const params: Record<string, string> = {
@@ -117,17 +98,10 @@ const Reports = () => {
       .finally(() => setLoadingMonth(false));
   }, []);
 
-<<<<<<< HEAD
   const totalPages  = Math.ceil(total / LIMIT);
   const totalImport  = items.reduce((s, r) => s + r.totalImport,  0);
   const totalExport  = items.reduce((s, r) => s + r.totalExport,  0);
   const totalClosing = items.reduce((s, r) => s + r.closingStock, 0);
-=======
-  const totalImported = data.reduce((s, r) => s + r.total_import, 0);
-  const totalExported = data.reduce((s, r) => s + r.total_export, 0);
-  const importOrderCount = data.reduce((s, r) => s + (r.import_count || 0), 0);
-  const exportOrderCount = data.reduce((s, r) => s + (r.export_count || 0), 0);
->>>>>>> 70e3aa7 (fix(frontend): restore missing component definition in Reports.tsx)
 
   const handleExport = async (format: 'excel' | 'pdf') => {
     const t = toast.loading(`Đang tạo file ${format.toUpperCase()}...`);
@@ -176,7 +150,7 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* Summary cards — luôn hiển thị tháng hiện tại */}
+      {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
         {[
           { label: 'Nhập kho tháng này',  value: monthImport,  icon: <ArrowDownToLine size={18} className="text-[#0058be] mt-1 shrink-0" /> },
@@ -196,46 +170,7 @@ const Reports = () => {
               {card.icon}
             </div>
           </div>
-<<<<<<< HEAD
         ))}
-=======
-          <p className="text-xs text-slate-400">{importOrderCount} phiếu nhập</p>
-        </div>
-
-        <div className="bg-white border border-[#E2E8F0] shadow-sm rounded p-5 flex flex-col justify-between h-32 relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#e5eeff] rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-[#45474c] mb-1">Tổng xuất kho</p>
-              <h3 className="text-[32px] font-semibold text-[#0b1c30] leading-none">{totalExported.toLocaleString()}</h3>
-            </div>
-            <ArrowUpFromLine size={18} className="text-[#0058be] mt-1 shrink-0" />
-          </div>
-          <p className="text-xs text-slate-400">{exportOrderCount} phiếu xuất</p>
-        </div>
-
-        <div className="bg-white border border-[#E2E8F0] shadow-sm rounded p-5 flex flex-col justify-between h-32 relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#e5eeff] rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-[#45474c] mb-1">Chênh lệch</p>
-              <h3 className={`text-[32px] font-semibold leading-none ${totalImported - totalExported >= 0 ? 'text-[#166534]' : 'text-[#991b1b]'}`}>
-                {totalImported - totalExported >= 0 ? '+' : ''}{(totalImported - totalExported).toLocaleString()}
-              </h3>
-            </div>
-            <Package size={18} className="text-[#0058be] mt-1 shrink-0" />
-          </div>
-          <p className="text-xs text-slate-400">Nhập − Xuất</p>
-        </div>
-
-        <div className="bg-white border border-[#E2E8F0] shadow-sm rounded p-5 flex flex-col justify-between h-32 relative overflow-hidden group text-center items-center justify-center">
-          <p className="text-xs font-medium text-[#45474c] mb-1">Dữ liệu thời gian thực</p>
-          <div className="flex items-center gap-2 text-[#0058be]">
-             <Package size={24} />
-             <span className="text-sm font-semibold">WareFlow API</span>
-          </div>
-        </div>
->>>>>>> 6893acc (fix(frontend): fix syntax error in Reports.tsx)
       </div>
 
       {/* Filter */}
@@ -355,6 +290,4 @@ const Reports = () => {
       </div>
     </div>
   );
-};
-
-export default Reports;
+}
