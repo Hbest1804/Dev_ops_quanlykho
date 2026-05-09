@@ -135,7 +135,7 @@ export const ReportRepository = {
         p.name, 
         p.category, 
         p.unit,
-        SUM(ABS(st.quantity))::int AS total_quantity
+        SUM(ABS(st.quantity)) AS total_quantity
       FROM stock_transactions st
       JOIN products p ON st.product_id = p.id
       WHERE st.created_at >= $1 AND st.created_at <= $2

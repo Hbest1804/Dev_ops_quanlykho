@@ -69,8 +69,17 @@ export const ReportService = {
 
   async getInventoryReport({ fromDate, toDate, category }) {
     if (!fromDate || !toDate) throw BadRequest('fromDate and toDate are required');
-    const rows = await ReportRepository.findSummary({ from: fromDate, to: toDate, category, limit: 1000000 });
-    return rows.map(r => ({
+    const allRows = [];
+    let page = 1;
+    const limit = 5000;
+    while (true) {
+      const rows = await ReportRepository.findSummary({ from: fromDate, to: toDate, category, page, limit });
+      if (rows.length === 0) break;
+      allRows.push(...rows);
+      if (rows.length < limit) break;
+      page++;
+    }
+    return allRows.map(r => ({
       code: r.product_code,
       name: r.product_name,
       category: r.category,
@@ -125,32 +134,39 @@ export const ReportService = {
       if (category) doc.font(fontRegular).text(`Danh mục: ${category}`, { align: 'center' });
       doc.moveDown();
 
-      // Table Header (Very basic implementation)
-      const tableTop = 150;
       const colWidths = [60, 150, 80, 50, 50, 50, 50];
       const headers = ['Mã SP', 'Tên sản phẩm', 'ĐVT', 'Đầu', 'Nhập', 'Xuất', 'Cuối'];
       
-      let x = 30;
-      doc.fontSize(10).font(fontBold);
-      headers.forEach((h, i) => {
-        doc.text(h, x, tableTop);
-        x += colWidths[i];
-      });
+      const drawHeader = (startY) => {
+        let hX = 30;
+        doc.fontSize(10).font(fontBold);
+        headers.forEach((h, i) => {
+          doc.text(h, hX, startY);
+          hX += colWidths[i];
+        });
+        doc.moveTo(30, startY + 15).lineTo(560, startY + 15).stroke();
+        return startY + 25;
+      };
 
-      doc.moveTo(30, tableTop + 15).lineTo(560, tableTop + 15).stroke();
+      let y = drawHeader(150);
 
       // Rows
-      let y = tableTop + 25;
       doc.font(fontRegular);
       data.forEach(r => {
-        if (y > 750) {
+        const textOptions = { width: colWidths[1] - 5, lineBreak: true };
+        const nameHeight = doc.heightOfString(r.name, textOptions);
+        const rowHeight = Math.max(20, nameHeight + 5);
+
+        if (y + rowHeight > 750) {
           doc.addPage();
-          y = 50;
+          y = drawHeader(50);
+          doc.font(fontRegular);
         }
-        x = 30;
+
+        let x = 30;
         doc.text(r.code, x, y);
         x += colWidths[0];
-        doc.text(r.name.substring(0, 30), x, y);
+        doc.text(r.name, x, y, textOptions);
         x += colWidths[1];
         doc.text(r.unit, x, y);
         x += colWidths[2];
@@ -162,7 +178,7 @@ export const ReportService = {
         x += colWidths[5];
         doc.text(r.closing_stock.toString(), x, y, { width: colWidths[6], align: 'right' });
         
-        y += 20;
+        y += rowHeight;
       });
 
       doc.end();
