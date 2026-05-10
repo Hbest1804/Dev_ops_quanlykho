@@ -17,6 +17,15 @@ type ReportItem = {
   closingStock: number;
 };
 
+type TopProductItem = {
+  id: number;
+  code: string;
+  name: string;
+  category: string;
+  unit: string;
+  total_quantity: number;
+};
+
 const PERIOD_OPTIONS = ['Tuần này', 'Tháng này', 'Quý này', 'Tất cả'];
 
 const getPeriodDates = (period: string): [string, string] => {
@@ -45,7 +54,7 @@ export default function Reports() {
   const [dateTo, setDateTo] = useState(() => getPeriodDates('Tháng này')[1]);
 
   const [items, setItems] = useState<ReportItem[]>([]);
-  const [topItems, setTopItems] = useState<any[]>([]); // For top products
+  const [topItems, setTopItems] = useState<TopProductItem[]>([]); // For top products
 
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -108,7 +117,9 @@ export default function Reports() {
         setMonthClosing(data.data.totals.totalClosing);
         setMonthTotal(data.data.total);
       })
-      .catch(() => { })
+      .catch((err) => {
+        console.error('Lỗi khi tải tổng quan tháng:', err);
+      })
       .finally(() => setLoadingMonth(false));
   }, []);
 

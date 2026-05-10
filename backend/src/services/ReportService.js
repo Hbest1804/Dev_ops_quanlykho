@@ -49,21 +49,15 @@ export const ReportService = {
       throw BadRequest('Loại giao dịch (type) phải là "import" hoặc "export"');
     }
 
-    const start = new Date(fromDate);
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(toDate);
-    end.setHours(23, 59, 59, 999);
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    if (new Date(fromDate).toString() === 'Invalid Date' || new Date(toDate).toString() === 'Invalid Date') {
       throw BadRequest('Định dạng ngày tháng không hợp lệ');
     }
 
-    if (start > end) {
+    if (fromDate > toDate) {
       throw BadRequest('Ngày bắt đầu không được lớn hơn ngày kết thúc');
     }
 
-    const rows = await ReportRepository.getTopProducts(start, end, type);
+    const rows = await ReportRepository.getTopProducts(fromDate, toDate, type);
     return rows;
   },
 
