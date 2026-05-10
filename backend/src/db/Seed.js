@@ -2,9 +2,9 @@ import bcrypt from 'bcrypt';
 import { pool } from './Pool.js';
 
 export async function seedAdminUser() {
-  const email    = process.env.ADMIN_EMAIL;
+  const email = process.env.ADMIN_EMAIL;
   const password = process.env.ADMIN_PASSWORD;
-  const name     = process.env.ADMIN_NAME || 'Administrator';
+  const name = process.env.ADMIN_NAME || 'Administrator';
 
   if (!email || !password) {
     console.warn('Seed: ADMIN_EMAIL hoặc ADMIN_PASSWORD chưa được set, bỏ qua.');
