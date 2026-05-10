@@ -121,8 +121,8 @@ export const ReportRepository = {
     const values = category ? [from, to, category] : [from, to];
     const { rows } = await pool.query(category ? CATEGORY_TOTALS : BASE_TOTALS, values);
     return {
-      totalImport:  Number(rows[0].total_import),
-      totalExport:  Number(rows[0].total_export),
+      totalImport: Number(rows[0].total_import),
+      totalExport: Number(rows[0].total_export),
       totalClosing: Number(rows[0].total_closing),
     };
   },
