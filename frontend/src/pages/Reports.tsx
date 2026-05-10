@@ -17,6 +17,15 @@ type ReportItem = {
   closingStock: number;
 };
 
+type TopProductItem = {
+  id: number;
+  code: string;
+  name: string;
+  category: string;
+  unit: string;
+  total_quantity: number;
+};
+
 const PERIOD_OPTIONS = ['Tuần này', 'Tháng này', 'Quý này', 'Tất cả'];
 
 const getPeriodDates = (period: string): [string, string] => {
@@ -39,19 +48,23 @@ const getPeriodDates = (period: string): [string, string] => {
 };
 
 export default function Reports() {
+  const [reportType, setReportType] = useState('summary'); // 'summary' | 'top-export' | 'top-import'
   const [period, setPeriod] = useState('Tháng này');
   const [dateFrom, setDateFrom] = useState(() => getPeriodDates('Tháng này')[0]);
   const [dateTo, setDateTo] = useState(() => getPeriodDates('Tháng này')[1]);
+
   const [items, setItems] = useState<ReportItem[]>([]);
+  const [topItems, setTopItems] = useState<TopProductItem[]>([]); // For top products
+
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
 
-  const [monthImport,  setMonthImport]  = useState(0);
-  const [monthExport,  setMonthExport]  = useState(0);
+  const [monthImport, setMonthImport] = useState(0);
+  const [monthExport, setMonthExport] = useState(0);
   const [monthClosing, setMonthClosing] = useState(0);
-  const [monthTotal,   setMonthTotal]   = useState(0);
+  const [monthTotal, setMonthTotal] = useState(0);
   const [loadingMonth, setLoadingMonth] = useState(true);
 
   const handlePeriodChange = (val: string) => {
@@ -64,13 +77,23 @@ export default function Reports() {
   const fetchReport = useCallback(async (targetPage = 1) => {
     setLoading(true);
     try {
-      const params: Record<string, string> = {
-        from: dateFrom, to: dateTo,
-        page: String(targetPage), limit: String(LIMIT),
-      };
-      const { data } = await api.get('/reports/summary', { params });
-      setItems(data.data.items);
-      setTotal(data.data.total);
+      if (reportType === 'summary') {
+        const params: Record<string, string> = {
+          from: dateFrom, to: dateTo,
+          page: String(targetPage), limit: String(LIMIT),
+        };
+        const { data } = await api.get('/reports/summary', { params });
+        setItems(data.data.items);
+        setTotal(data.data.total);
+      } else {
+        const params: Record<string, string> = {
+          fromDate: dateFrom, toDate: dateTo,
+          type: reportType === 'top-export' ? 'export' : 'import',
+        };
+        const { data } = await api.get('/reports/top-products', { params });
+        setTopItems(data.data || []);
+        setTotal(data.data?.length || 0);
+      }
       setPage(targetPage);
       setFetched(true);
     } catch (err: any) {
@@ -79,7 +102,7 @@ export default function Reports() {
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, reportType]);
 
   useEffect(() => { fetchReport(1); }, [fetchReport]);
 
@@ -94,13 +117,15 @@ export default function Reports() {
         setMonthClosing(data.data.totals.totalClosing);
         setMonthTotal(data.data.total);
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error('Lỗi khi tải tổng quan tháng:', err);
+      })
       .finally(() => setLoadingMonth(false));
   }, []);
 
-  const totalPages  = Math.ceil(total / LIMIT);
-  const totalImport  = items.reduce((s, r) => s + r.totalImport,  0);
-  const totalExport  = items.reduce((s, r) => s + r.totalExport,  0);
+  const totalPages = reportType === 'summary' ? Math.ceil(total / LIMIT) : 1;
+  const totalImport = items.reduce((s, r) => s + r.totalImport, 0);
+  const totalExport = items.reduce((s, r) => s + r.totalExport, 0);
   const totalClosing = items.reduce((s, r) => s + r.closingStock, 0);
 
   const handleExport = async (format: 'excel' | 'pdf') => {
@@ -137,14 +162,14 @@ export default function Reports() {
           <button 
             onClick={() => handleExport('excel')} 
             className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
-            disabled={loading || items.length === 0}
+            disabled={loading || reportType !== 'summary' || items.length === 0}
           >
             <Download size={18} /> Xuất Excel
           </button>
           <button 
             onClick={() => handleExport('pdf')} 
             className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
-            disabled={loading || items.length === 0}
+            disabled={loading || reportType !== 'summary' || items.length === 0}
           >
             <FileText size={18} /> Xuất PDF
           </button>
@@ -154,10 +179,10 @@ export default function Reports() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
         {[
-          { label: 'Nhập kho tháng này',  value: monthImport,  icon: <ArrowDownToLine size={18} className="text-[#0058be] mt-1 shrink-0" /> },
-          { label: 'Xuất kho tháng này',  value: monthExport,  icon: <ArrowUpFromLine  size={18} className="text-[#0058be] mt-1 shrink-0" /> },
-          { label: 'Tồn cuối tháng này',  value: monthClosing, icon: <Package          size={18} className="text-[#0058be] mt-1 shrink-0" /> },
-          { label: 'Sản phẩm có phát sinh', value: monthTotal, icon: <TrendingUp       size={18} className="text-[#0058be] mt-1 shrink-0" /> },
+          { label: 'Nhập kho tháng này', value: monthImport, icon: <ArrowDownToLine size={18} className="text-[#0058be] mt-1 shrink-0" /> },
+          { label: 'Xuất kho tháng này', value: monthExport, icon: <ArrowUpFromLine size={18} className="text-[#0058be] mt-1 shrink-0" /> },
+          { label: 'Tồn cuối tháng này', value: monthClosing, icon: <Package size={18} className="text-[#0058be] mt-1 shrink-0" /> },
+          { label: 'Sản phẩm có phát sinh', value: monthTotal, icon: <TrendingUp size={18} className="text-[#0058be] mt-1 shrink-0" /> },
         ].map(card => (
           <div key={card.label} className="bg-white border border-[#E2E8F0] shadow-sm rounded p-5 flex flex-col justify-between h-32 relative overflow-hidden group">
             <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#e5eeff] rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
@@ -177,6 +202,10 @@ export default function Reports() {
       {/* Filter */}
       <div className="bg-white border border-[#c5c6cd] rounded-xl shadow-sm p-4 shrink-0">
         <div className="flex flex-col sm:flex-row gap-4 items-end">
+          <div className="flex flex-col gap-1.5 w-full sm:w-44">
+            <label className="text-xs font-medium text-[#45474c]">Loại báo cáo</label>
+            <CustomSelect value={reportType} onChange={setReportType} options={['summary', 'top-export', 'top-import']} displayNames={{ 'summary': 'Tổng hợp tồn kho', 'top-export': 'Top 10 xuất kho', 'top-import': 'Top 10 nhập kho' }} />
+          </div>
           <div className="flex flex-col gap-1.5 w-full sm:w-44">
             <label className="text-xs font-medium text-[#45474c]">Khoảng thời gian</label>
             <CustomSelect value={period} onChange={handlePeriodChange} options={PERIOD_OPTIONS} />
@@ -202,69 +231,100 @@ export default function Reports() {
       {/* Table */}
       <div className="bg-white border border-[#c5c6cd] rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-[300px]">
         <div className="px-5 py-4 border-b border-[#e5eeff] bg-[#f8f9ff] shrink-0">
-          <h2 className="text-sm font-semibold text-slate-700">Tổng hợp nhập xuất tồn theo sản phẩm</h2>
+          <h2 className="text-sm font-semibold text-slate-700">
+            {reportType === 'summary' ? 'Tổng hợp nhập xuất tồn theo sản phẩm' : reportType === 'top-export' ? 'Top 10 sản phẩm xuất kho nhiều nhất' : 'Top 10 sản phẩm nhập kho nhiều nhất'}
+          </h2>
           <p className="text-xs text-slate-400 mt-0.5">{fetched ? `${dateFrom} → ${dateTo} · ${total} sản phẩm` : 'Chọn khoảng thời gian và nhấn Xem báo cáo'}</p>
         </div>
         <div className="overflow-x-auto flex-1 min-h-0">
-          <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead className="bg-[#e5eeff] sticky top-0 z-10 border-b border-[#c5c6cd]">
-              <tr>
-                <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] w-28">Mã SP</th>
-                <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c]">Tên sản phẩm</th>
-                <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-28">Tồn đầu kỳ</th>
-                <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-28">Tổng nhập</th>
-                <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-28">Tổng xuất</th>
-                <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-28">Tồn cuối kỳ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#e5eeff] text-sm">
-              {loading ? (
+          {reportType === 'summary' ? (
+            <table className="w-full text-left border-collapse min-w-[800px]">
+              <thead className="bg-[#e5eeff] sticky top-0 z-10 border-b border-[#c5c6cd]">
                 <tr>
-                  <td colSpan={6} className="py-20 text-center text-[#0058be]">
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="animate-spin" size={32} />
-                      <span className="text-sm font-medium">Đang tải dữ liệu báo cáo...</span>
-                    </div>
-                  </td>
+                  <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] w-28">Mã SP</th>
+                  <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c]">Tên sản phẩm</th>
+                  <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-28">Tồn đầu kỳ</th>
+                  <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-28">Tổng nhập</th>
+                  <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-28">Tổng xuất</th>
+                  <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-28">Tồn cuối kỳ</th>
                 </tr>
-              ) : !fetched ? (
-                <tr><td colSpan={6} className="py-12 text-center text-slate-400">Nhấn "Xem báo cáo" để tải dữ liệu.</td></tr>
-              ) : items.length === 0 ? (
-                <tr><td colSpan={6} className="py-12 text-center text-slate-400">Không có dữ liệu trong khoảng thời gian đã chọn.</td></tr>
-              ) : items.map(row => (
-                <tr key={row.productId} className="hover:bg-[#F1F5F9] transition-colors">
-                  <td className="py-3 px-4 font-medium text-[#0058be]">{row.productCode}</td>
-                  <td className="py-3 px-4 font-medium text-slate-800">{row.productName}</td>
-                  <td className="py-3 px-4 text-right text-slate-600">{row.openingStock.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right">
-                    <span className="inline-flex items-center gap-1 font-medium text-[#166534]">
-                      <ArrowDownToLine size={13} />{row.totalImport.toLocaleString()}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <span className="inline-flex items-center gap-1 font-medium text-[#9a3412]">
-                      <ArrowUpFromLine size={13} />{row.totalExport.toLocaleString()}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-right font-semibold text-[#0b1c30]">{row.closingStock.toLocaleString()}</td>
+              </thead>
+              <tbody className="divide-y divide-[#e5eeff] text-sm">
+                {loading ? (
+                  <tr><td colSpan={6} className="py-12 text-center text-slate-400">Đang tải...</td></tr>
+                ) : !fetched ? (
+                  <tr><td colSpan={6} className="py-12 text-center text-slate-400">Nhấn "Xem báo cáo" để tải dữ liệu.</td></tr>
+                ) : items.length === 0 ? (
+                  <tr><td colSpan={6} className="py-12 text-center text-slate-400">Không có dữ liệu trong khoảng thời gian đã chọn.</td></tr>
+                ) : items.map(row => (
+                  <tr key={row.productId} className="hover:bg-[#F1F5F9] transition-colors">
+                    <td className="py-3 px-4 font-medium text-[#0058be]">{row.productCode}</td>
+                    <td className="py-3 px-4 font-medium text-slate-800">{row.productName}</td>
+                    <td className="py-3 px-4 text-right text-slate-600">{row.openingStock.toLocaleString()}</td>
+                    <td className="py-3 px-4 text-right">
+                      <span className="inline-flex items-center gap-1 font-medium text-[#166534]">
+                        <ArrowDownToLine size={13} />{row.totalImport.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <span className="inline-flex items-center gap-1 font-medium text-[#9a3412]">
+                        <ArrowUpFromLine size={13} />{row.totalExport.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right font-semibold text-[#0b1c30]">{row.closingStock.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+              {items.length > 0 && (
+                <tfoot className="bg-slate-50 border-t border-[#c5c6cd]">
+                  <tr className="text-sm font-semibold">
+                    <td colSpan={2} className="py-3 px-4 text-slate-600 text-right">Tổng cộng (trang này)</td>
+                    <td className="py-3 px-4 text-right text-slate-600">{items.reduce((s, r) => s + r.openingStock, 0).toLocaleString()}</td>
+                    <td className="py-3 px-4 text-right text-[#166534]">{totalImport.toLocaleString()}</td>
+                    <td className="py-3 px-4 text-right text-[#9a3412]">{totalExport.toLocaleString()}</td>
+                    <td className="py-3 px-4 text-right text-[#0b1c30]">{totalClosing.toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          ) : (
+            <table className="w-full text-left border-collapse min-w-[800px]">
+              <thead className="bg-[#e5eeff] sticky top-0 z-10 border-b border-[#c5c6cd]">
+                <tr>
+                  <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] w-28">Mã SP</th>
+                  <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c]">Tên sản phẩm</th>
+                  <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] w-32">Danh mục</th>
+                  <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] w-24">ĐVT</th>
+                  <th className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right w-32">Tổng số lượng</th>
                 </tr>
-              ))}
-            </tbody>
-            {items.length > 0 && (
-              <tfoot className="bg-slate-50 border-t border-[#c5c6cd]">
-                <tr className="text-sm font-semibold">
-                  <td colSpan={2} className="py-3 px-4 text-slate-600 text-right">Tổng cộng (trang này)</td>
-                  <td className="py-3 px-4 text-right text-slate-600">{items.reduce((s, r) => s + r.openingStock, 0).toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right text-[#166534]">{totalImport.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right text-[#9a3412]">{totalExport.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right text-[#0b1c30]">{totalClosing.toLocaleString()}</td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[#e5eeff] text-sm">
+                {loading ? (
+                  <tr><td colSpan={5} className="py-12 text-center text-slate-400">Đang tải...</td></tr>
+                ) : !fetched ? (
+                  <tr><td colSpan={5} className="py-12 text-center text-slate-400">Nhấn "Xem báo cáo" để tải dữ liệu.</td></tr>
+                ) : topItems.length === 0 ? (
+                  <tr><td colSpan={5} className="py-12 text-center text-slate-400">Không có dữ liệu trong khoảng thời gian đã chọn.</td></tr>
+                ) : topItems.map(row => (
+                  <tr key={row.id} className="hover:bg-[#F1F5F9] transition-colors">
+                    <td className="py-3 px-4 font-medium text-[#0058be]">{row.code}</td>
+                    <td className="py-3 px-4 font-medium text-slate-800">{row.name}</td>
+                    <td className="py-3 px-4 text-slate-600">{row.category}</td>
+                    <td className="py-3 px-4 text-slate-600">{row.unit}</td>
+                    <td className="py-3 px-4 text-right font-semibold text-[#0b1c30]">
+                      <span className={`inline-flex items-center gap-1 ${reportType === 'top-export' ? 'text-[#9a3412]' : 'text-[#166534]'}`}>
+                        {reportType === 'top-export' ? <ArrowUpFromLine size={13} /> : <ArrowDownToLine size={13} />}
+                        {row.total_quantity.toLocaleString()}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
-        {totalPages > 1 && (
+        {reportType === 'summary' && totalPages > 1 && (
           <div className="px-4 py-3 border-t border-[#e5eeff] flex items-center justify-between text-sm shrink-0">
             <span className="text-slate-500">
               {((page - 1) * LIMIT) + 1}–{Math.min(page * LIMIT, total)} / {total} sản phẩm
