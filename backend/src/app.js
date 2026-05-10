@@ -29,12 +29,13 @@ app.get('/health', (_req, res) => {
 });
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
 app.use('/api/auth',          authRouter);
 app.use('/api/users',         usersRouter);
 app.use('/api/products',      productsRouter);
 app.use('/api/import-orders', importOrdersRouter);
 app.use('/api/export-orders', exportOrdersRouter);
-app.use('/api/reports', reportsRouter);
+app.use('/api/reports',       reportsRouter);
 
 app.use(notFound);
 app.use(errorHandler);

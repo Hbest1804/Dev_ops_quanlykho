@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Download, FileText, ArrowDownToLine, ArrowUpFromLine, Package, TrendingUp } from 'lucide-react';
+import { Download, FileText, ArrowDownToLine, ArrowUpFromLine, Package, TrendingUp, Loader2 } from 'lucide-react';
 import CustomSelect from '../component/CustomSelect';
 import DatePicker from '../component/DatePicker';
-import { exportToExcel, exportToPDF } from '../lib/export';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 
@@ -55,11 +54,11 @@ export default function Reports() {
   const [monthTotal,   setMonthTotal]   = useState(0);
   const [loadingMonth, setLoadingMonth] = useState(true);
 
-  const handlePeriodChange = (p: string) => {
-    setPeriod(p);
-    const [from, to] = getPeriodDates(p);
-    setDateFrom(from);
-    setDateTo(to);
+  const handlePeriodChange = (val: string) => {
+    setPeriod(val);
+    const [f, t] = getPeriodDates(val);
+    setDateFrom(f);
+    setDateTo(t);
   };
 
   const fetchReport = useCallback(async (targetPage = 1) => {
@@ -104,15 +103,27 @@ export default function Reports() {
   const totalExport  = items.reduce((s, r) => s + r.totalExport,  0);
   const totalClosing = items.reduce((s, r) => s + r.closingStock, 0);
 
-  const handleExportExcel = () => {
-    exportToExcel(items.map(r => ({
-      'Mã SP':        r.productCode,
-      'Tên sản phẩm': r.productName,
-      'Tồn đầu kỳ':   r.openingStock,
-      'Tổng nhập':    r.totalImport,
-      'Tổng xuất':    r.totalExport,
-      'Tồn cuối kỳ':  r.closingStock,
-    })), 'BaoCaoTonKho');
+  const handleExport = async (format: 'excel' | 'pdf') => {
+    const t = toast.loading(`Đang tạo file ${format.toUpperCase()}...`);
+    try {
+      const response = await api.get('/reports/inventory/export', {
+        params: { fromDate: dateFrom, toDate: dateTo, format },
+        responseType: 'blob',
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const ext = format === 'excel' ? 'xlsx' : 'pdf';
+      link.setAttribute('download', `BaoCaoInventory_${dateFrom}_${dateTo}.${ext}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      toast.success(`Xuất file ${format.toUpperCase()} thành công`, { id: t });
+    } catch (error: any) {
+      toast.error(`Lỗi khi xuất file ${format.toUpperCase()}`, { id: t });
+    }
   };
 
   return (
@@ -123,16 +134,24 @@ export default function Reports() {
           <p className="text-sm text-[#45474c] mt-1">Xem xu hướng tồn kho và kết xuất báo cáo.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={handleExportExcel} disabled={items.length === 0} className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-40">
+          <button 
+            onClick={() => handleExport('excel')} 
+            className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            disabled={loading || items.length === 0}
+          >
             <Download size={18} /> Xuất Excel
           </button>
-          <button onClick={exportToPDF} disabled={items.length === 0} className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-40">
+          <button 
+            onClick={() => handleExport('pdf')} 
+            className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            disabled={loading || items.length === 0}
+          >
             <FileText size={18} /> Xuất PDF
           </button>
         </div>
       </div>
 
-      {/* Summary cards — luôn hiển thị tháng hiện tại */}
+      {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
         {[
           { label: 'Nhập kho tháng này',  value: monthImport,  icon: <ArrowDownToLine size={18} className="text-[#0058be] mt-1 shrink-0" /> },
@@ -170,12 +189,12 @@ export default function Reports() {
             <label className="text-xs font-medium text-[#45474c]">Đến ngày</label>
             <DatePicker value={dateTo} onChange={setDateTo} />
           </div>
-          <button
+          <button 
             onClick={() => fetchReport(1)}
             disabled={loading}
-            className="bg-[#0058be] hover:bg-[#2170e4] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-60"
+            className="bg-[#0058be] hover:bg-[#2170e4] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-2 disabled:opacity-50"
           >
-            {loading ? 'Đang tải...' : 'Xem báo cáo'}
+            {loading ? <Loader2 className="animate-spin" size={18} /> : 'Xem báo cáo'}
           </button>
         </div>
       </div>
@@ -200,7 +219,14 @@ export default function Reports() {
             </thead>
             <tbody className="divide-y divide-[#e5eeff] text-sm">
               {loading ? (
-                <tr><td colSpan={6} className="py-12 text-center text-slate-400">Đang tải...</td></tr>
+                <tr>
+                  <td colSpan={6} className="py-20 text-center text-[#0058be]">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="animate-spin" size={32} />
+                      <span className="text-sm font-medium">Đang tải dữ liệu báo cáo...</span>
+                    </div>
+                  </td>
+                </tr>
               ) : !fetched ? (
                 <tr><td colSpan={6} className="py-12 text-center text-slate-400">Nhấn "Xem báo cáo" để tải dữ liệu.</td></tr>
               ) : items.length === 0 ? (

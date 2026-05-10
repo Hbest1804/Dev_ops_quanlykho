@@ -40,6 +40,8 @@ export const ReportRepository = {
        SELECT p.id          AS product_id,
               p.code        AS product_code,
               p.name        AS product_name,
+              p.category    AS category,
+              p.unit        AS unit,
               COALESCE(os.opening_stock, 0) AS opening_stock,
               COALESCE(pt.total_import,  0) AS total_import,
               COALESCE(pt.total_export,  0) AS total_export
@@ -124,4 +126,25 @@ export const ReportRepository = {
       totalClosing: Number(rows[0].total_closing),
     };
   },
+
+  async getTopProducts(fromDate, toDate, type, limit = 10) {
+    const query = `
+      SELECT 
+        p.id, 
+        p.code, 
+        p.name, 
+        p.category, 
+        p.unit,
+        SUM(ABS(st.quantity)) AS total_quantity
+      FROM stock_transactions st
+      JOIN products p ON st.product_id = p.id
+      WHERE st.created_at >= $1 AND st.created_at <= $2
+        AND st.type = $3
+      GROUP BY p.id, p.code, p.name, p.category, p.unit
+      ORDER BY total_quantity DESC
+      LIMIT $4
+    `;
+    const { rows } = await pool.query(query, [fromDate, toDate, type, limit]);
+    return rows;
+  }
 };
