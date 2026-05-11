@@ -8,7 +8,7 @@ import productsRouter from './routes/Products.js';
 import importOrdersRouter from './routes/ImportOrders.js';
 import exportOrdersRouter from './routes/ExportOrders.js';
 import reportsRouter from './routes/Reports.js';
-import { notFound, errorHandler } from './middlewares/ErrorHandler.js';
+import { notFound, errorHandler } from './middlewares/errorHandler.js';
 import { pool } from './db/Pool.js';
 import { seedAdminUser } from './db/Seed.js';
 
