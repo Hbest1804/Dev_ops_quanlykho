@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { UserPlus, Search, X, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, Search, X, Eye, EyeOff, KeyRound } from 'lucide-react';
 import CustomSelect from '../component/CustomSelect';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
@@ -69,6 +69,12 @@ export default function Users() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ name: '', email: '', password: '', role: '', status: '' });
   const [showEditPwd, setShowEditPwd] = useState(false);
+
+  // Reset password modal
+  const [isResetOpen, setIsResetOpen] = useState(false);
+  const [resetPwd, setResetPwd] = useState('');
+  const [showResetPwd, setShowResetPwd] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const openAddModal = () => {
     setAddForm(EMPTY_ADD);
@@ -144,6 +150,25 @@ export default function Users() {
       toast.success('Đã cập nhật người dùng');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Cập nhật thất bại');
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    if (!resetPwd) { toast.error('Vui lòng nhập mật khẩu mới'); return; }
+    if (resetPwd.length < 8) { toast.error('Mật khẩu tối thiểu 8 ký tự'); return; }
+
+    setResetting(true);
+    try {
+      await api.post(`/auth/reset-password/${selectedUser.id}`, { newPassword: resetPwd });
+      toast.success(`Reset mật khẩu thành công! Người dùng ${selectedUser.name} cần đăng nhập lại.`);
+      setIsResetOpen(false);
+      setResetPwd('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Reset mật khẩu thất bại');
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -355,12 +380,83 @@ export default function Users() {
               </div>
 
               {/* Drawer footer */}
-              <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
-                <button type="button" onClick={closeDrawer} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-lg cursor-pointer">
+              <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => { setResetPwd(''); setShowResetPwd(false); setIsResetOpen(true); }}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 border border-amber-200 rounded-lg cursor-pointer transition-colors"
+                >
+                  <KeyRound size={14} />
+                  Reset mật khẩu
+                </button>
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={closeDrawer} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-lg cursor-pointer">
+                    Huỷ bỏ
+                  </button>
+                  <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg cursor-pointer">
+                    Lưu thay đổi
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Reset Password Modal */}
+      {isResetOpen && selectedUser && createPortal(
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-base text-[#0b1c30]">Reset mật khẩu</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{selectedUser.name} · {selectedUser.email}</p>
+              </div>
+              <button onClick={() => setIsResetOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleResetPassword} noValidate className="p-6 flex flex-col gap-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-800">
+                ⚠️ Sau khi reset, người dùng sẽ bị đăng xuất và cần đăng nhập lại với mật khẩu mới.
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-slate-700">Mật khẩu mới *</label>
+                <div className="relative">
+                  <input
+                    type={showResetPwd ? 'text' : 'password'}
+                    value={resetPwd}
+                    onChange={e => setResetPwd(e.target.value)}
+                    autoFocus
+                    className="w-full px-3 py-2 pr-10 rounded-lg border border-slate-300 focus:border-[#0058be] focus:ring-1 focus:ring-[#0058be] outline-none text-sm"
+                    placeholder="Tối thiểu 8 ký tự"
+                  />
+                  <button type="button" onClick={() => setShowResetPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
+                    {showResetPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                {resetPwd.length > 0 && resetPwd.length < 8 && (
+                  <p className="text-xs text-red-500">Mật khẩu phải có ít nhất 8 ký tự</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsResetOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-lg cursor-pointer"
+                >
                   Huỷ bỏ
                 </button>
-                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg cursor-pointer">
-                  Lưu thay đổi
+                <button
+                  type="submit"
+                  disabled={resetting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                >
+                  {resetting ? 'Đang xử lý...' : 'Xác nhận reset'}
                 </button>
               </div>
             </form>
