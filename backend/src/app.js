@@ -40,7 +40,8 @@ app.use('/api/reports',       reportsRouter);
 app.use(notFound);
 app.use(errorHandler);
 
-async function start() {
+// Khởi động DB và seed (chạy cả local lẫn Vercel)
+async function initDB() {
   try {
     const client = await pool.connect();
     client.release();
@@ -48,12 +49,16 @@ async function start() {
     await seedAdminUser();
   } catch (err) {
     console.error('Database connection failed:', err.message);
-    process.exit(1);
+    // Không gọi process.exit trên Vercel serverless
+    if (process.env.VERCEL !== '1') process.exit(1);
   }
-
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 
-start();
+initDB();
+
+// Chỉ listen khi chạy local (không phải Vercel serverless)
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
 
 export default app;
