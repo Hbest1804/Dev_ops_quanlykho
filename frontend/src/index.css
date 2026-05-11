@@ -30,6 +30,16 @@
   --font-mono: "Inter", monospace;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--color-surface);
