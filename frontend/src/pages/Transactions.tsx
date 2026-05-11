@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowDownToLine, ArrowUpFromLine, Package } from 'lucide-react';
 import CustomSelect from '../component/CustomSelect';
 import DatePicker from '../component/DatePicker';
-import { MOCK_IMPORT_ORDERS } from '../data/stockInMock';
-import { MOCK_EXPORT_ORDERS, getReasonLabel } from '../data/stockOutMock';
+import { getReasonLabel } from '../constants/reasons';
+import type { ImportOrder } from '../types/import';
+import type { ExportOrder } from '../types/export';
+import api from '../lib/api';
 
 type TxRow = {
   date: string;
@@ -41,11 +43,34 @@ export default function Transactions() {
   const [statusFilter, setStatusFilter] = useState('Tất cả');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [importOrders, setImportOrders] = useState<ImportOrder[]>([]);
+  const [exportOrders, setExportOrders] = useState<ExportOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        const [importRes, exportRes] = await Promise.all([
+          api.get('/import-orders'),
+          api.get('/export-orders'),
+        ]);
+        setImportOrders(importRes.data.data || []);
+        setExportOrders(exportRes.data.data || []);
+      } catch {
+        setImportOrders([]);
+        setExportOrders([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, []);
 
   const allRows = useMemo<TxRow[]>(() => {
     const rows: TxRow[] = [];
 
-    for (const order of MOCK_IMPORT_ORDERS) {
+    for (const order of importOrders) {
       for (const item of order.items) {
         if (item.snapshot_product_code !== productCode) continue;
         rows.push({
@@ -56,13 +81,13 @@ export default function Transactions() {
           quantity: item.quantity,
           unit: item.snapshot_unit,
           status: order.status,
-          note: item.note || order.note,
+          note: item.note || order.note || '',
           detail: `NCC: ${order.supplier}`,
         });
       }
     }
 
-    for (const order of MOCK_EXPORT_ORDERS) {
+    for (const order of exportOrders) {
       for (const item of order.items) {
         if (item.snapshot_product_code !== productCode) continue;
         rows.push({
@@ -73,26 +98,14 @@ export default function Transactions() {
           quantity: item.quantity,
           unit: item.snapshot_unit,
           status: order.status,
-          note: item.note || order.note,
+          note: item.note || order.note || '',
           detail: `Lý do: ${getReasonLabel(order.reason)}`,
         });
       }
     }
 
     return rows.sort((a, b) => b.date.localeCompare(a.date));
-  }, [productCode]);
-
-  const productName = useMemo(() => {
-    for (const o of MOCK_IMPORT_ORDERS) {
-      const item = o.items.find(i => i.snapshot_product_code === productCode);
-      if (item) return item.snapshot_product_name;
-    }
-    for (const o of MOCK_EXPORT_ORDERS) {
-      const item = o.items.find(i => i.snapshot_product_code === productCode);
-      if (item) return item.snapshot_product_name;
-    }
-    return productCode;
-  }, [productCode]);
+  }, [productCode, importOrders, exportOrders]);
 
   const filtered = useMemo(() => allRows.filter(r => {
     if (typeFilter === 'Nhập kho' && r.type !== 'in') return false;
@@ -111,6 +124,10 @@ export default function Transactions() {
   const totalOut = confirmed.filter(r => r.type === 'out').reduce((s, r) => s + r.quantity, 0);
   const unit = allRows[0]?.unit ?? '';
 
+  if (loading) {
+    return <div className="flex items-center justify-center h-64 text-slate-400">Đang tải...</div>;
+  }
+
   return (
     <div className="space-y-6 flex flex-col flex-1">
       {/* Header */}
@@ -121,7 +138,7 @@ export default function Transactions() {
         <div>
           <h2 className="text-2xl font-semibold text-[#0b1c30]">Lịch sử giao dịch</h2>
           <p className="text-sm text-[#45474c] mt-1">
-            <span className="font-medium text-[#0058be]">{productCode}</span> · {productName}
+            <span className="font-medium text-[#0058be]">{productCode}</span>
           </p>
         </div>
       </div>

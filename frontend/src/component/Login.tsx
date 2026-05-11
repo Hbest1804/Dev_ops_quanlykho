@@ -13,11 +13,11 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
 
-    // Mock login delay
-    setTimeout(() => {
-      login(email);
+    try {
+      await login(email, password);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (

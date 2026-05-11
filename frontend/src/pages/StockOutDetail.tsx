@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, Package, Calendar, User, FileText, Clock, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getReasonLabel, type ExportOrderDetail } from '../data/stockOutMock';
+import { getReasonLabel } from '../constants/reasons';
+import type { ExportOrderDetail } from '../types/export';
 import { useConfirm } from '../component/useConfirm';
 import api from '../lib/api';
 

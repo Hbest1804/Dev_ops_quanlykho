@@ -7,7 +7,8 @@ import ProductPickerModal from '../component/ProductPickerModal';
 import { useConfirm } from '../component/useConfirm';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
-import { REASON_VALUES, getReasonLabel, type ExportOrderListItem } from '../data/stockOutMock';
+import { REASON_VALUES, getReasonLabel } from '../constants/reasons';
+import type { ExportOrderListItem } from '../types/export';
 
 const LIMIT = 20;
 
