@@ -342,7 +342,6 @@ export default function Products() {
                     </td>
                     <td className="py-3 px-4 text-right" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => navigate(`/transactions/${p.code}`)} className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer" title="Lịch sử"><History size={18} /></button>
                         <button onClick={() => openEditModal(p)} className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer" title="Chỉnh sửa"><Edit2 size={18} /></button>
                         <button onClick={() => handleDelete(p.id)} className="text-slate-400 hover:text-red-600 p-1 cursor-pointer" title="Xoá"><Trash2 size={18} /></button>
                       </div>
