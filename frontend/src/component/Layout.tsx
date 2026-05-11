@@ -16,6 +16,7 @@ export default function Layout() {
   const navigate = useNavigate();
 
   const userRole = profile?.role || 'warehouse_staff';
+
   const roleLabels: Record<string, string> = {
     admin: 'Quản trị viên',
     warehouse_staff: 'Thủ kho',
