@@ -76,8 +76,9 @@ export const AuthController = {
   async changePassword(req, res, next) {
     try {
       const { currentPassword, newPassword } = req.body;
-      if (!currentPassword || !newPassword)
-        return res.status(400).json({ success: false, message: 'currentPassword và newPassword là bắt buộc' });
+      // [Review] Dùng next(BadRequest) để đi qua global errorHandler, nhất quán với các controller khác
+      if (!currentPassword) return next(BadRequest('currentPassword là bắt buộc'));
+      if (!newPassword)     return next(BadRequest('newPassword là bắt buộc'));
 
       await AuthService.changePassword(req.user.sub, currentPassword, newPassword);
 
@@ -94,8 +95,8 @@ export const AuthController = {
     try {
       const { userId } = req.params;
       const { newPassword } = req.body;
-      if (!newPassword)
-        return res.status(400).json({ success: false, message: 'newPassword là bắt buộc' });
+      // [Review] Dùng next(BadRequest) để đi qua global errorHandler, nhất quán với các controller khác
+      if (!newPassword) return next(BadRequest('newPassword là bắt buộc'));
 
       await AuthService.resetPassword(userId, newPassword);
       res.json({ success: true, message: 'Reset mật khẩu thành công. Người dùng cần đăng nhập lại.' });

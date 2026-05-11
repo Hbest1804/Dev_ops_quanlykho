@@ -68,8 +68,15 @@ export const AuthService = {
     const user = await UserRepository.findByIdWithPassword(userId);
     if (!user) throw NotFound('Người dùng không tồn tại');
 
+    // [Review] Kiểm tra tài khoản bị vô hiệu hoá trước khi cho phép đổi mật khẩu
+    if (user.status === 'disabled') throw Forbidden('Tài khoản đã bị vô hiệu hoá');
+
     const valid = await bcrypt.compare(currentPassword, user.password);
     if (!valid) throw BadRequest('Mật khẩu hiện tại không đúng');
+
+    // [Review] Ngăn đặt lại mật khẩu trùng với mật khẩu hiện tại
+    const isSame = await bcrypt.compare(newPassword, user.password);
+    if (isSame) throw BadRequest('Mật khẩu mới không được trùng với mật khẩu hiện tại');
 
     const hash = await bcrypt.hash(newPassword, 10);
     await UserRepository.update(userId, { password: hash });
@@ -85,8 +92,13 @@ export const AuthService = {
     if (!newPassword || newPassword.length < 8)
       throw BadRequest('Mật khẩu mới phải có ít nhất 8 ký tự');
 
-    const user = await UserRepository.findById(targetUserId);
+    // [Review] Admin cần lấy cả password hash để kiểm tra tái sử dụng
+    const user = await UserRepository.findByIdWithPassword(targetUserId);
     if (!user) throw NotFound('Người dùng không tồn tại');
+
+    // [Review] Ngăn đặt lại mật khẩu trùng với mật khẩu hiện tại
+    const isSame = await bcrypt.compare(newPassword, user.password);
+    if (isSame) throw BadRequest('Mật khẩu mới không được trùng với mật khẩu hiện tại');
 
     const hash = await bcrypt.hash(newPassword, 10);
     await UserRepository.update(targetUserId, { password: hash });
