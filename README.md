@@ -372,25 +372,6 @@ Dev_ops_quanlykho/
 
 ---
 
-## 🔑 API Endpoints chính
-
-| Method | Endpoint | Mô tả | Auth |
-|---|---|---|---|
-| `GET` | `/api/health` | Health check | ❌ |
-| `POST` | `/api/auth/login` | Đăng nhập | ❌ |
-| `POST` | `/api/auth/logout` | Đăng xuất | ✅ |
-| `POST` | `/api/auth/refresh` | Làm mới token | ✅ |
-| `GET` | `/api/users` | Danh sách users | ✅ Admin |
-| `GET` | `/api/products` | Danh sách sản phẩm | ✅ |
-| `POST` | `/api/products` | Tạo sản phẩm | ✅ Admin |
-| `GET` | `/api/import-orders` | Phiếu nhập kho | ✅ |
-| `POST` | `/api/import-orders` | Tạo phiếu nhập | ✅ |
-| `GET` | `/api/export-orders` | Phiếu xuất kho | ✅ |
-| `POST` | `/api/export-orders` | Tạo phiếu xuất | ✅ |
-| `GET` | `/api/reports` | Báo cáo thống kê | ✅ |
-
----
-
 ## 🐛 Xử lý sự cố thường gặp
 
 **Backend không kết nối được database:**
