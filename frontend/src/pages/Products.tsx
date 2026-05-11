@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Download, Plus, Search, History, Edit2, Trash2, X, ChevronRight } from 'lucide-react';
+import { Download, Plus, Search, History, Edit2, Trash2, X, ChevronRight, ArrowDownToLine, ArrowUpFromLine, Package, CalendarDays } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../lib/export';
@@ -8,6 +8,14 @@ import CategoryPickerDrawer from '../component/CategoryPickerDrawer';
 import CustomSelect from '../component/CustomSelect';
 import { useConfirm } from '../component/useConfirm';
 import api from '../lib/api';
+
+type TxItem = {
+  type: 'import' | 'export';
+  quantity: number;
+  stockAfter: number;
+  createdBy: string;
+  createdAt: string;
+};
 
 type Product = {
   id: number;
@@ -49,6 +57,44 @@ export default function Products() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // ── Detail drawer tabs ────────────────────────────────────────
+  const [drawerTab, setDrawerTab] = useState<'info' | 'tx'>('info');
+  const [txItems, setTxItems] = useState<TxItem[]>([]);
+  const [txTotal, setTxTotal] = useState(0);
+  const [txLoading, setTxLoading] = useState(false);
+  const [txFrom, setTxFrom] = useState('');
+  const [txTo, setTxTo]   = useState('');
+
+  const fetchTx = useCallback(async (productId: number, from: string, to: string) => {
+    setTxLoading(true);
+    try {
+      const params: Record<string, string> = { limit: '50' };
+      if (from) params.from = from;
+      if (to)   params.to   = to;
+      const { data } = await api.get(`/products/${productId}/transactions`, { params });
+      setTxItems(data.data?.items ?? []);
+      setTxTotal(data.data?.total ?? 0);
+    } catch {
+      toast.error('Không thể tải lịch sử giao dịch');
+    } finally {
+      setTxLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedProduct && drawerTab === 'tx') {
+      fetchTx(selectedProduct.id, txFrom, txTo);
+    }
+  }, [selectedProduct, drawerTab, txFrom, txTo, fetchTx]);
+
+  const openDrawer = (p: Product) => {
+    setSelectedProduct(p);
+    setDrawerTab('info');
+    setTxFrom('');
+    setTxTo('');
+    setTxItems([]);
+  };
 
   const [formData, setFormData] = useState({
     code: '', name: '', description: '', category: '', unit: 'Cái',
@@ -280,7 +326,7 @@ export default function Products() {
               ) : filteredProducts.map(p => {
                 const st = getStatus(p.stock);
                 return (
-                  <tr key={p.id} onClick={() => setSelectedProduct(p)} className="hover:bg-slate-50 transition-colors group cursor-pointer">
+                  <tr key={p.id} onClick={() => openDrawer(p)} className="hover:bg-slate-50 transition-colors group cursor-pointer">
                     <td className="py-3 px-4 font-medium text-slate-600">{p.code}</td>
                     <td className="py-3 px-4 font-medium text-slate-900">{p.name}</td>
                     <td className="py-3 px-4 text-slate-500 max-w-[200px]">
@@ -320,76 +366,192 @@ export default function Products() {
       {selectedProduct && createPortal(
         <>
           <div className="fixed inset-0 bg-slate-900/30 z-40" onClick={() => setSelectedProduct(null)} />
-          <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-white shadow-xl z-50 flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-semibold text-lg text-[#0b1c30]">Chi tiết sản phẩm</h3>
+          <div className="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-xl z-50 flex flex-col">
+            {/* Drawer header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="font-semibold text-lg text-[#0b1c30]">{selectedProduct.name}</h3>
+                <p className="text-xs text-slate-400 mt-0.5">{selectedProduct.code} · {selectedProduct.category}</p>
+              </div>
               <button onClick={() => setSelectedProduct(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={20} /></button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">Tên sản phẩm</p>
-                  <p className="font-semibold text-slate-900 text-base">{selectedProduct.name}</p>
-                </div>
-                <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatus(selectedProduct.stock).classes}`}>
-                  {getStatus(selectedProduct.stock).label}
-                </span>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Mã SP</p>
-                <p className="text-sm font-medium text-slate-700">{selectedProduct.code}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Mô tả</p>
-                <p className="text-sm text-slate-700 leading-relaxed">{selectedProduct.description || '—'}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">Danh mục</p>
-                  <p className="text-sm text-slate-700">{selectedProduct.category}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">Đơn vị tính</p>
-                  <p className="text-sm text-slate-700">{selectedProduct.unit}</p>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Tồn kho</p>
-                <p className="text-2xl font-bold text-slate-900">{selectedProduct.stock.toLocaleString()}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">Ngày tạo</p>
-                  <p className="text-sm text-slate-700">{new Date(selectedProduct.createdAt).toLocaleString('vi-VN')}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">Cập nhật lần cuối</p>
-                  <p className="text-sm text-slate-700">{new Date(selectedProduct.updatedAt).toLocaleString('vi-VN')}</p>
-                </div>
-              </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-slate-100 shrink-0">
+              {(['info', 'tx'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setDrawerTab(tab)}
+                  className={`flex-1 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
+                    drawerTab === tab
+                      ? 'text-[#0058be] border-b-2 border-[#0058be]'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {tab === 'info' ? 'Thông tin' : 'Lịch sử giao dịch'}
+                </button>
+              ))}
             </div>
-            <div className="p-4 border-t border-slate-100 flex flex-col gap-3">
-              <button
-                onClick={() => navigate(`/transactions/${selectedProduct.code}`)}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-[#0058be] bg-[#e5eeff] hover:bg-[#d0e4ff] rounded-lg transition-colors cursor-pointer"
-              >
-                <span className="flex items-center gap-2"><History size={16} /> Xem lịch sử giao dịch</span>
-                <ChevronRight size={16} />
-              </button>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => openEditModal(selectedProduct)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg transition-colors cursor-pointer"
-                >
-                  <Edit2 size={16} /> Chỉnh sửa
-                </button>
-                <button
-                  onClick={() => handleDelete(selectedProduct.id)}
-                  className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors cursor-pointer"
-                >
-                  <Trash2 size={16} />
-                </button>
+
+            {/* Tab: Thông tin */}
+            {drawerTab === 'info' && (
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Tên sản phẩm</p>
+                    <p className="font-semibold text-slate-900 text-base">{selectedProduct.name}</p>
+                  </div>
+                  <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatus(selectedProduct.stock).classes}`}>
+                    {getStatus(selectedProduct.stock).label}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Mã SP</p>
+                  <p className="text-sm font-medium text-slate-700">{selectedProduct.code}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Mô tả</p>
+                  <p className="text-sm text-slate-700 leading-relaxed">{selectedProduct.description || '—'}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Danh mục</p>
+                    <p className="text-sm text-slate-700">{selectedProduct.category}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Đơn vị tính</p>
+                    <p className="text-sm text-slate-700">{selectedProduct.unit}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Tồn kho</p>
+                  <p className="text-2xl font-bold text-slate-900">{selectedProduct.stock.toLocaleString()}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Ngày tạo</p>
+                    <p className="text-sm text-slate-700">{new Date(selectedProduct.createdAt).toLocaleString('vi-VN')}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Cập nhật lần cuối</p>
+                    <p className="text-sm text-slate-700">{new Date(selectedProduct.updatedAt).toLocaleString('vi-VN')}</p>
+                  </div>
+                </div>
               </div>
+            )}
+
+            {/* Tab: Lịch sử giao dịch */}
+            {drawerTab === 'tx' && (
+              <div className="flex-1 overflow-y-auto flex flex-col">
+                {/* Date filters */}
+                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 shrink-0">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <CalendarDays size={15} className="text-slate-400 shrink-0" />
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">Từ</span>
+                      <input
+                        type="date" value={txFrom}
+                        onChange={e => setTxFrom(e.target.value)}
+                        className="text-xs border border-slate-200 rounded-md px-2 py-1.5 outline-none focus:border-[#0058be] bg-white cursor-pointer"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">Đến</span>
+                      <input
+                        type="date" value={txTo}
+                        onChange={e => setTxTo(e.target.value)}
+                        className="text-xs border border-slate-200 rounded-md px-2 py-1.5 outline-none focus:border-[#0058be] bg-white cursor-pointer"
+                      />
+                    </div>
+                    {(txFrom || txTo) && (
+                      <button
+                        onClick={() => { setTxFrom(''); setTxTo(''); }}
+                        className="text-xs text-slate-400 hover:text-slate-600 cursor-pointer ml-auto"
+                      >
+                        Xoá lọc
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Count */}
+                <div className="px-4 py-2 border-b border-slate-100 shrink-0 flex items-center justify-between">
+                  <span className="text-xs text-slate-400">
+                    {txLoading ? 'Đang tải...' : `${txTotal} giao dịch`}
+                  </span>
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto flex-1">
+                  <table className="w-full text-left border-collapse min-w-[480px]">
+                    <thead className="bg-[#e5eeff] sticky top-0 z-10">
+                      <tr>
+                        <th className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c]">Ngày</th>
+                        <th className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c]">Loại</th>
+                        <th className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right">SL</th>
+                        <th className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c] text-right">Tồn sau</th>
+                        <th className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-[#45474c]">Người thực hiện</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#e5eeff] text-sm">
+                      {txLoading ? (
+                        <tr><td colSpan={5} className="py-10 text-center text-slate-400 text-sm">Đang tải...</td></tr>
+                      ) : txItems.length === 0 ? (
+                        <tr>
+                          <td colSpan={5}>
+                            <div className="flex flex-col items-center justify-center py-14 gap-3 text-slate-400">
+                              <Package size={36} strokeWidth={1.2} />
+                              <p className="text-sm">Chưa có giao dịch nào.</p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : txItems.map((tx, i) => (
+                        <tr key={i} className="hover:bg-[#f8f9ff] transition-colors">
+                          <td className="py-2.5 px-4 text-slate-600 whitespace-nowrap">
+                            {new Date(tx.createdAt).toLocaleDateString('vi-VN')}
+                          </td>
+                          <td className="py-2.5 px-4">
+                            {tx.type === 'import' ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-[#166534] bg-[#bbf7d0] px-2 py-0.5 rounded">
+                                <ArrowDownToLine size={11} /> Nhập
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-[#9a3412] bg-orange-50 px-2 py-0.5 rounded">
+                                <ArrowUpFromLine size={11} /> Xuất
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-semibold">
+                            <span className={tx.type === 'import' ? 'text-[#166534]' : 'text-[#9a3412]'}>
+                              {tx.type === 'import' ? '+' : '-'}{tx.quantity.toLocaleString()}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-4 text-right text-slate-700 font-medium">
+                            {tx.stockAfter.toLocaleString()}
+                          </td>
+                          <td className="py-2.5 px-4 text-slate-500 text-xs truncate max-w-[120px]">{tx.createdBy}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Footer actions */}
+            <div className="p-4 border-t border-slate-100 flex gap-3 shrink-0">
+              <button
+                onClick={() => { openEditModal(selectedProduct); }}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg transition-colors cursor-pointer"
+              >
+                <Edit2 size={16} /> Chỉnh sửa
+              </button>
+              <button
+                onClick={() => handleDelete(selectedProduct.id)}
+                className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors cursor-pointer"
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
           </div>
         </>,

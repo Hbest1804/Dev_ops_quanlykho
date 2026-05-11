@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProductService } from '../services/ProductService.js';
 import { ProductRepository } from '../repositories/ProductRepository.js';
-import { BadRequest, Conflict, NotFound, UnprocessableEntity } from '../utils/AppError.js';
 
 // Mock dependencies
 vi.mock('../repositories/ProductRepository.js', () => ({
