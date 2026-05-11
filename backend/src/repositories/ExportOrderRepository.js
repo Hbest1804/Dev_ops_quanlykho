@@ -34,7 +34,7 @@ export const ExportOrderRepository = {
     if (status) { conditions.push(`status = $${i++}`); values.push(status); }
     if (reason) { conditions.push(`reason = $${i++}`); values.push(reason); }
     if (from)   { conditions.push(`export_date >= $${i++}`); values.push(from); }
-    if (to)     { conditions.push(`export_date <= $${i++}`); values.push(to); }
+    if (to)     { conditions.push(`export_date <= $${i}`); values.push(to); }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await pool.query(
       `SELECT COUNT(*)::int AS total FROM export_orders ${where}`,

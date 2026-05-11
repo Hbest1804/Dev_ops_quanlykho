@@ -55,7 +55,7 @@ export const ImportOrderRepository = {
          LEFT JOIN users u ON u.id = io.created_by
          ${where}
          ORDER BY io.created_at DESC
-         LIMIT $${i++} OFFSET $${i++}`,
+         LIMIT $${i} OFFSET $${i + 1}`,
       [...values, limit, offset],
     );
 
