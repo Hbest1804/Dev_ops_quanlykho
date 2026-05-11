@@ -20,16 +20,23 @@ const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
   .map(o => o.trim());
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // Cho phép request không có origin (Postman, curl, server-to-server)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS: origin "${origin}" not allowed`));
+  origin: function (origin, callback) {
+    // Cho Postman / server-to-server
+    if (!origin) return callback(null, true);
+
+    // check whitelist
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+
+    // ❗ KHÔNG throw error (quan trọng)
+    return callback(null, false);
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -41,12 +48,12 @@ app.get('/health', (_req, res) => {
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
-app.use('/api/auth',          authRouter);
-app.use('/api/users',         usersRouter);
-app.use('/api/products',      productsRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/products', productsRouter);
 app.use('/api/import-orders', importOrdersRouter);
 app.use('/api/export-orders', exportOrdersRouter);
-app.use('/api/reports',       reportsRouter);
+app.use('/api/reports', reportsRouter);
 
 app.use(notFound);
 app.use(errorHandler);
