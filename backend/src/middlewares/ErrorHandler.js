@@ -1,8 +1,8 @@
-export function notFound(req, res, next) {
+export function notFound(req, res, _next) {
   res.status(404).json({ message: `Not found: ${req.originalUrl}` });
 }
 
-export function errorHandler(err, req, res, next) {
+export function errorHandler(err, req, res, _next) {
   const status = err.status || 500;
   if (status === 500) console.error(err);
   res.status(status).json({

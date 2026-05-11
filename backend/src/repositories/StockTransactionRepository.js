@@ -76,7 +76,6 @@ export const StockTransactionRepository = {
     if (to) {
       conditions.push(`created_at <= $${i}`);
       values.push(new Date(`${to}T23:59:59.999Z`));
-      i++;
     }
 
     const { rows } = await pool.query(

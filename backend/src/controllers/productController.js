@@ -13,7 +13,7 @@ export const ProductController = {
   async getById(req, res, next) {
     try {
       const product = await ProductService.findById(req.params.id);
-      const { created_at, updated_at, ...rest } = product;
+      const { created_at, updated_at: _updated_at, ...rest } = product;
       res.json({ success: true, data: { ...rest, createdAt: created_at } });
     } catch (err) {
       next(err);
@@ -26,7 +26,7 @@ export const ProductController = {
       const product = await ProductService.create({
         code, name, category, unit, description, initialStock,
       });
-      const { created_at, updated_at, ...rest } = product;
+      const { created_at, updated_at: _updated_at, ...rest } = product;
       res.status(201).json({
         success: true,
         message: 'Product created',

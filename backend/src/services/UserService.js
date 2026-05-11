@@ -22,7 +22,7 @@ export const UserService = {
     const hash = await bcrypt.hash(password, 10);
     const user = await UserRepository.create({ name, email, password: hash, role });
 
-    const { password: _pw, ...safe } = user;
+    const { password: _password, ...safe } = user;
     return safe;
   },
 
@@ -48,7 +48,7 @@ export const UserService = {
     }
 
     const updated = await UserRepository.update(id, updateData);
-    const { password: _pw, ...safe } = updated;
+    const { password: _password, ...safe } = updated;
     return safe;
   },
 };
