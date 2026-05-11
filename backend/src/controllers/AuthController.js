@@ -3,10 +3,11 @@ import { BadRequest, Unauthorized, Forbidden } from '../utils/AppError.js';
 import { UserRepository } from '../repositories/UserRepository.js';
 
 const REFRESH_COOKIE = 'refreshToken';
+const isProduction = process.env.NODE_ENV === 'production';
 const COOKIE_OPTS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict',
+  secure: isProduction,
+  sameSite: isProduction ? 'none' : 'strict',
   maxAge: 7 * 24 * 60 * 60 * 1000,
   path: '/',
 };
@@ -65,7 +66,7 @@ export const AuthController = {
 
       await AuthService.logout(raw);
 
-      res.clearCookie(REFRESH_COOKIE, { httpOnly: true, sameSite: 'strict', path: '/' });
+      res.clearCookie(REFRESH_COOKIE, { httpOnly: true, secure: isProduction, sameSite: isProduction ? 'none' : 'strict', path: '/' });
       res.json({ success: true, message: 'Logged out successfully', data: null });
     } catch (err) {
       next(err);
@@ -83,7 +84,7 @@ export const AuthController = {
       await AuthService.changePassword(req.user.sub, currentPassword, newPassword);
 
       // Xoá cookie refresh → bắt đăng nhập lại
-      res.clearCookie(REFRESH_COOKIE, { httpOnly: true, sameSite: 'strict', path: '/' });
+      res.clearCookie(REFRESH_COOKIE, { httpOnly: true, secure: isProduction, sameSite: isProduction ? 'none' : 'strict', path: '/' });
       res.json({ success: true, message: 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.' });
     } catch (err) {
       next(err);
