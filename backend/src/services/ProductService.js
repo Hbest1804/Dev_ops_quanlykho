@@ -1,4 +1,5 @@
 import { ProductRepository } from '../repositories/ProductRepository.js';
+import { StockTransactionRepository } from '../repositories/StockTransactionRepository.js';
 import { BadRequest, Conflict, NotFound, UnprocessableEntity } from '../utils/AppError.js';
 
 export const ProductService = {
@@ -109,5 +110,33 @@ export const ProductService = {
 
     await ProductRepository.hardDelete(parsedId);
     return { deleted: true, type: 'hard' };
+  },
+
+  /**
+   * Lấy lịch sử giao dịch kho của một sản phẩm.
+   * @param {string|number} id  — Product ID
+   * @param {{ from?, to?, page?, limit? }} query
+   */
+  async getTransactions(id, query = {}) {
+    const parsedId = parseInt(id);
+    if (isNaN(parsedId)) throw BadRequest('Invalid product ID');
+
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    const { from, to } = query;
+    if (from && !dateRe.test(from)) throw BadRequest('Invalid "from" date format. Use YYYY-MM-DD');
+    if (to   && !dateRe.test(to))   throw BadRequest('Invalid "to" date format. Use YYYY-MM-DD');
+
+    const page  = Math.max(1, parseInt(query.page)  || 1);
+    const limit = Math.min(100, parseInt(query.limit) || 20);
+
+    const product = await ProductRepository.findById(parsedId);
+    if (!product || product.is_deleted) throw NotFound('Product not found');
+
+    const [items, total] = await Promise.all([
+      StockTransactionRepository.findByProductId(parsedId, { from, to, page, limit }),
+      StockTransactionRepository.countByProductId(parsedId, { from, to }),
+    ]);
+
+    return { items, total };
   },
 };

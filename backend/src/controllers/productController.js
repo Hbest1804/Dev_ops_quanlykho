@@ -57,4 +57,13 @@ export const ProductController = {
       next(err);
     }
   },
+
+  async getTransactions(req, res, next) {
+    try {
+      const data = await ProductService.getTransactions(req.params.id, req.query);
+      res.json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
