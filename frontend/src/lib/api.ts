@@ -1,9 +1,13 @@
 import axios from 'axios';
 
+// Trong production (Vercel), VITE_API_URL trỏ đến backend Vercel URL.
+// Trong dev, để trống để dùng Vite proxy (/api → localhost:3000).
+const baseURL = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL
-    ? `${import.meta.env.VITE_API_URL}/api`
-    : '/api',
+  baseURL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
