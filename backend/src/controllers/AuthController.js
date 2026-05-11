@@ -71,4 +71,38 @@ export const AuthController = {
       next(err);
     }
   },
+
+  /** User tự đổi mật khẩu (cần xác minh mật khẩu hiện tại) */
+  async changePassword(req, res, next) {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      // [Review] Dùng next(BadRequest) để đi qua global errorHandler, nhất quán với các controller khác
+      if (!currentPassword) return next(BadRequest('currentPassword là bắt buộc'));
+      if (!newPassword)     return next(BadRequest('newPassword là bắt buộc'));
+
+      await AuthService.changePassword(req.user.sub, currentPassword, newPassword);
+
+      // Xoá cookie refresh → bắt đăng nhập lại
+      res.clearCookie(REFRESH_COOKIE, { httpOnly: true, sameSite: 'strict', path: '/' });
+      res.json({ success: true, message: 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.' });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  /** Admin reset mật khẩu của user bất kỳ (không cần mật khẩu cũ) */
+  async resetPassword(req, res, next) {
+    try {
+      const { userId } = req.params;
+      const { newPassword } = req.body;
+      // [Review] Dùng next(BadRequest) để đi qua global errorHandler, nhất quán với các controller khác
+      if (!newPassword) return next(BadRequest('newPassword là bắt buộc'));
+
+      await AuthService.resetPassword(userId, newPassword);
+      res.json({ success: true, message: 'Reset mật khẩu thành công. Người dùng cần đăng nhập lại.' });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
+

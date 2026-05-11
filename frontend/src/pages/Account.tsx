@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import api from '../lib/api';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Quản trị viên',
@@ -25,7 +26,7 @@ const getInitials = (name: string) =>
   name.trim().split(/\s+/).slice(-2).map(n => n[0]).join('').toUpperCase();
 
 export default function Account() {
-  const { profile } = useAuth();
+  const { profile, logout } = useAuth();
 
   const [name, setName] = useState(profile?.full_name ?? '');
   const [email, setEmail] = useState(profile?.email ?? '');
@@ -33,6 +34,7 @@ export default function Account() {
   const [newPwd, setNewPwd] = useState('');
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [changingPwd, setChangingPwd] = useState(false);
   const role = profile?.role ?? 'warehouse_staff';
 
   const handleSaveProfile = (e: React.FormEvent<HTMLFormElement>) => {
@@ -42,14 +44,30 @@ export default function Account() {
     toast.success('Đã cập nhật thông tin tài khoản');
   };
 
-  const handleChangePassword = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!currentPwd) { toast.error('Vui lòng nhập mật khẩu hiện tại'); return; }
     if (!newPwd) { toast.error('Vui lòng nhập mật khẩu mới'); return; }
     if (newPwd.length < 8) { toast.error('Mật khẩu mới tối thiểu 8 ký tự'); return; }
-    setCurrentPwd('');
-    setNewPwd('');
-    toast.success('Đã đổi mật khẩu thành công');
+
+    setChangingPwd(true);
+    try {
+      await api.post('/auth/change-password', {
+        currentPassword: currentPwd,
+        newPassword: newPwd,
+      });
+      toast.success('Đổi mật khẩu thành công! Vui lòng đăng nhập lại.');
+      setCurrentPwd('');
+      setNewPwd('');
+      // Xoá token cục bộ và chuyển về trang đăng nhập sau 1.5s
+      setTimeout(async () => {
+        await logout();
+      }, 1500);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Đổi mật khẩu thất bại');
+    } finally {
+      setChangingPwd(false);
+    }
   };
 
   return (
@@ -173,8 +191,12 @@ export default function Account() {
                 </div>
               </div>
               <div className="flex justify-end pt-1">
-                <button type="submit" className="px-5 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg cursor-pointer transition-colors">
-                  Đổi mật khẩu
+                <button
+                  type="submit"
+                  disabled={changingPwd}
+                  className="px-5 py-2 text-sm font-medium text-white bg-[#0058be] hover:bg-[#2170e4] rounded-lg cursor-pointer transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {changingPwd ? 'Đang xử lý...' : 'Đổi mật khẩu'}
                 </button>
               </div>
             </form>

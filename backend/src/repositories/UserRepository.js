@@ -16,6 +16,14 @@ export const UserRepository = {
     return rows[0] ?? null;
   },
 
+  async findByIdWithPassword(id) {
+    const { rows } = await pool.query(
+      'SELECT id, name, email, password, role, status FROM users WHERE id = $1',
+      [id]
+    );
+    return rows[0] ?? null;
+  },
+
   async findByEmail(email) {
     const { rows } = await pool.query(
       'SELECT * FROM users WHERE email = $1',
