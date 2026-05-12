@@ -35,7 +35,6 @@ services:
         - quanlykho-network
       ports:
         - "80:80"
-        - "443:443"
       environment:
         BACKEND_HOST: ${BACKEND_HOST:-backend}
         FRONTEND_HOST: ${FRONTEND_HOST:-backend}
