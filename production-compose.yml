@@ -36,7 +36,7 @@ services:
     networks:
       - quanlykho-network
     ports:
-      - "${NGINX_PORT:-80}:80" # Dùng biến để linh hoạt port host
+      - "${NGINX_PORT:-80}:${NGINX_PORT:-80}" # Dùng biến để linh hoạt port host
     environment:
       BACKEND_HOST: ${BACKEND_HOST:-backend}
       FRONTEND_HOST: ${FRONTEND_HOST:-frontend} # Đã sửa mặc định về frontend
