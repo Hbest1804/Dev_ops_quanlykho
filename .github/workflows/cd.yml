@@ -1,0 +1,30 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  call-ci-logic:
+    name: Call CI Pipeline
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy to Production
+    needs: call-ci-logic
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: SSH and Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_PUBLIC_IP }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.SSH_PRIAVATE_KEY }}
+          script: |
+            cd /path/to/deployment
+            git pull origin main
+            # Add any additional deployment commands here (e.g., restart services)    
