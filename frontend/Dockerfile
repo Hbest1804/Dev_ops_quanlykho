@@ -15,6 +15,8 @@ COPY . .
 RUN npm run build
 
 FROM nginx:alpine AS production
+ENV FRONTEND_PORT=80
+COPY default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE ${FRONTEND_PORT}
 CMD ["nginx", "-g", "daemon off;"]
