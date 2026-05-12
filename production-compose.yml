@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/hbest1804/quanlykho-backend:sha-257cd01
+    image: ghcr.io/hbest1804/quanlykho-backend:${BACKEND_IMAGE_TAG:-latest}
     container_name: quanlykho-api
     restart: unless-stopped
     networks:
@@ -19,7 +19,7 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       JWT_SECRET: ${JWT_SECRET}
     frontend:
-      image: ghcr.io/hbest1804/quanlykho-frontend:sha-257cd01
+      image: ghcr.io/hbest1804/quanlykho-frontend:${FRONTEND_IMAGE_TAG:-latest}
       container_name: quanlykho-web
       restart: unless-stopped
       networks:
