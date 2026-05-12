@@ -20,6 +20,10 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
     # Cache cho Static Assets
     location /assets/ {
         expires 1y;

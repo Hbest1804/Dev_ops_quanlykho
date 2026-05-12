@@ -15,7 +15,11 @@ COPY . .
 RUN npm run build
 
 FROM nginx:alpine AS production
+ENV NGINX_PORT=80
+ENV NGINX_HOST=localhost
+ENV BACKEND_HOST=localhost
+ENV BACKEND_PORT=8080
 COPY default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE ${NGINX_PORT}
 CMD ["nginx", "-g", "daemon off;"]
