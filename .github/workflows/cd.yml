@@ -24,8 +24,8 @@ jobs:
       - name: Copy files to VPS
         uses: appleboy/scp-action@master
         with:
-          host: ${{ vars.VPS_PUBLIC_IP }}
-          username: ${{ vars.VPS_USERNAME }}
+          host: ${{ secrets.VPS_PUBLIC_IP }}
+          username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "production-compose.yml,default.conf.template"
           target: "/home/${{ secrets.VPS_USERNAME }}/quanlykho"
@@ -34,8 +34,8 @@ jobs:
       - name: SSH and Deploy
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ vars.VPS_PUBLIC_IP }}
-          username: ${{ vars.VPS_USERNAME }}
+          host: ${{ secrets.VPS_PUBLIC_IP }}
+          username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             mkdir -p /home/${{ vars.VPS_USERNAME }}/quanlykho
@@ -43,16 +43,16 @@ jobs:
             
             # Setup .env file
             cat <<EOF > .env
-            POSTGRES_HOST="${{ vars.POSTGRES_HOST }}"
-            POSTGRES_PORT="${{ vars.POSTGRES_PORT }}"
-            POSTGRES_DB="${{ vars.POSTGRES_DB }}"
-            POSTGRES_USER="${{ vars.POSTGRES_USER }}"
-            POSTGRES_PASSWORD="${{ vars.POSTGRES_PASSWORD }}"
+            POSTGRES_HOST="${{ secrets.POSTGRES_HOST }}"
+            POSTGRES_PORT="${{ secrets.POSTGRES_PORT }}"
+            POSTGRES_DB="${{ secrets.POSTGRES_DB }}"
+            POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
+            POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
             ADMIN_EMAIL="${{ vars.ADMIN_EMAIL }}"
             ADMIN_PASSWORD="${{ vars.ADMIN_PASSWORD }}"
             ADMIN_NAME="${{ vars.ADMIN_NAME }}"
             CORS_ORIGIN="${{ vars.CORS_ORIGIN }}"
-            JWT_SECRET="${{ vars.JWT_SECRET }}"
+            JWT_SECRET="${{ secrets.JWT_SECRET }}"
             BACKEND_PORT="${{ vars.BACKEND_PORT }}"
             FRONTEND_PORT="${{ vars.FRONTEND_PORT }}"
             BACKEND_IMAGE_TAG="${{ github.sha }}"
