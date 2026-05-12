@@ -17,7 +17,6 @@ jobs:
     name: Deploy to Production
     needs: call-ci-logic
     runs-on: ubuntu-latest
-    environment: PRODUCTION
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,8 +24,8 @@ jobs:
       - name: Copy files to VPS
         uses: appleboy/scp-action@master
         with:
-          host: ${{ secrets.VPS_PUBLIC_IP }}
-          username: ${{ secrets.VPS_USERNAME }}
+          host: ${{ vars.VPS_PUBLIC_IP }}
+          username: ${{ vars.VPS_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "production-compose.yml,default.conf.template"
           target: "/home/${{ secrets.VPS_USERNAME }}/quanlykho"
@@ -37,7 +36,7 @@ jobs:
         with:
           host: ${{ vars.VPS_PUBLIC_IP }}
           username: ${{ vars.VPS_USERNAME }}
-          key: ${{ vars.SSH_PRIVATE_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             mkdir -p /home/${{ vars.VPS_USERNAME }}/quanlykho
             cd /home/${{ vars.VPS_USERNAME }}/quanlykho
