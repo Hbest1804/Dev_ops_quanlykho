@@ -56,8 +56,8 @@ jobs:
             EOF
 
             # Pull latest images
-            docker pull ghcr.io/${{ github.repository_owner }}/quanlykho-backend:${{ github.sha }}
-            docker pull ghcr.io/${{ github.repository_owner }}/quanlykho-frontend:${{ github.sha }}
+            docker pull ghcr.io/hbest1804/quanlykho-backend:${{ github.sha }}
+            docker pull ghcr.io/hbest1804/quanlykho-frontend:${{ github.sha }}
 
             # Run production compose
-            docker compose -f production-compose.yml up -d --remove-orphans
+            docker-compose -f production-compose.yml up -d --remove-orphans
