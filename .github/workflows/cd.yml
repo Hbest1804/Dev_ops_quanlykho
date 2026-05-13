@@ -47,7 +47,7 @@ jobs:
           ssh ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_PUBLIC_IP }} << 'EOF'
 
             set -e
-            
+
             cd /home/${{ secrets.VPS_USERNAME }}/quanlykho
 
             # Create .env
@@ -78,7 +78,7 @@ jobs:
             docker pull ghcr.io/hbest1804/quanlykho-frontend:${{ github.sha }}
 
             # Deploy
-            docker compose -f production-compose.yml up -d --remove-orphans
+            docker-compose -f production-compose.yml up -d --remove-orphans
 
             # Cleanup
             docker image prune -af
