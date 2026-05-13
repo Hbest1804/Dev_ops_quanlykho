@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Download, Plus, Search, History, Edit2, Trash2, X, ChevronRight, ArrowDownToLine, ArrowUpFromLine, Package, CalendarDays } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../lib/export';
 import CategoryPickerDrawer from '../component/CategoryPickerDrawer';
@@ -31,6 +31,7 @@ type Product = {
 
 export default function Products() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { confirm, dialog } = useConfirm();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -46,7 +47,10 @@ export default function Products() {
   }, [search]);
 
   const [categoryFilter, setCategoryFilter] = useState('Tất cả danh mục');
-  const [statusFilter, setStatusFilter] = useState('Tất cả trạng thái');
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const status = searchParams.get('status');
+    return status === 'LOW_STOCK' ? 'Sắp Hết' : 'Tất cả trạng thái';
+  });
 
   const [categories, setCategories] = useState<string[]>([
     'Thiết bị điện', 'Đóng gói', 'Trang phục', 'Thiết bị công nghiệp', 'Văn phòng phẩm',
