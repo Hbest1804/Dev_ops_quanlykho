@@ -44,3 +44,46 @@ describe('UserService.update', () => {
     expect(UserRepository.update).toHaveBeenCalledWith(userId, expect.objectContaining({ password: 'hashed_new_pass' }));
   });
 });
+
+describe('UserService.toggleStatus', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('UT-USR-TOGGLE-001 | Khóa tài khoản active', async () => {
+    UserRepository.findById.mockResolvedValue({ id: 5, status: 'active' });
+    UserRepository.updateStatus.mockResolvedValue({ id: 5, status: 'disabled' });
+
+    const result = await UserService.toggleStatus(5, 1);
+
+    expect(result).toEqual({ id: 5, status: 'disabled' });
+    expect(UserRepository.updateStatus).toHaveBeenCalledWith(5, 'disabled');
+  });
+
+  it('UT-USR-TOGGLE-002 | Mở khóa tài khoản disabled', async () => {
+    UserRepository.findById.mockResolvedValue({ id: 5, status: 'disabled' });
+    UserRepository.updateStatus.mockResolvedValue({ id: 5, status: 'active' });
+
+    const result = await UserService.toggleStatus(5, 1);
+
+    expect(result).toEqual({ id: 5, status: 'active' });
+    expect(UserRepository.updateStatus).toHaveBeenCalledWith(5, 'active');
+  });
+
+  it('UT-USR-TOGGLE-003 | Admin tự khóa chính mình', async () => {
+    await expect(UserService.toggleStatus(5, 5))
+      .rejects.toMatchObject({ status: 422, message: 'Cannot disable your own account' });
+
+    expect(UserRepository.findById).not.toHaveBeenCalled();
+    expect(UserRepository.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it('UT-USR-TOGGLE-004 | User không tồn tại', async () => {
+    UserRepository.findById.mockResolvedValue(null);
+
+    await expect(UserService.toggleStatus(404, 1))
+      .rejects.toMatchObject({ status: 404, message: 'User not found' });
+
+    expect(UserRepository.updateStatus).not.toHaveBeenCalled();
+  });
+});
