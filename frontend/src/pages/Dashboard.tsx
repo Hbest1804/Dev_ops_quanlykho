@@ -119,11 +119,11 @@ export default function Dashboard() {
           <h1 className="text-2xl font-semibold text-[#0b1c30]">Tổng quan</h1>
           <p className="text-sm text-[#45474c] mt-1">Chỉ số thống kê kho hàng theo thời gian thực.</p>
         </div>
-        <div className="flex gap-3">
-          <button onClick={exportToPDF} className="flex items-center gap-2 border border-[#c5c6cd] bg-white px-4 py-2 rounded text-sm font-medium text-[#0b1c30] hover:bg-gray-50 transition-colors cursor-pointer">
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <button onClick={exportToPDF} className="flex items-center justify-center gap-2 border border-[#c5c6cd] bg-white px-4 py-2 rounded text-sm font-medium text-[#0b1c30] hover:bg-gray-50 transition-colors cursor-pointer w-full sm:w-auto">
             <Download size={16} /> Xuất PDF
           </button>
-          <button onClick={() => exportToExcel([], 'Dashboard')} className="flex items-center gap-2 border border-[#c5c6cd] bg-white px-4 py-2 rounded text-sm font-medium text-[#0b1c30] hover:bg-gray-50 transition-colors cursor-pointer">
+          <button onClick={() => exportToExcel([], 'Dashboard')} className="flex items-center justify-center gap-2 border border-[#c5c6cd] bg-white px-4 py-2 rounded text-sm font-medium text-[#0b1c30] hover:bg-gray-50 transition-colors cursor-pointer w-full sm:w-auto">
             <Table size={16} /> Xuất Excel
           </button>
         </div>

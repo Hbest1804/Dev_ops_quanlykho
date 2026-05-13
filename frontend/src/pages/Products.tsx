@@ -257,16 +257,16 @@ export default function Products() {
           <h2 className="text-2xl font-semibold text-[#0b1c30]">Quản lý Sản phẩm</h2>
           <p className="text-sm text-[#45474c] mt-1">Quản lý hàng lưu kho, cấp độ tồn kho và lịch sử sản phẩm.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
           <button
             onClick={() => exportToExcel(filteredProducts, 'DanhSachSanPham')}
-            className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer"
+            className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
           >
             <Download size={18} />Xuất dữ liệu
           </button>
           <button
             onClick={openAddModal}
-            className="bg-[#0058be] hover:bg-[#2170e4] text-white text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer"
+            className="bg-[#0058be] hover:bg-[#2170e4] text-white text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
           >
             <Plus size={18} />Thêm sản phẩm mới
           </button>
@@ -356,7 +356,7 @@ export default function Products() {
             </tbody>
           </table>
         </div>
-        <div className="px-4 py-3 border-t border-slate-200 bg-white flex items-center justify-between shrink-0">
+        <div className="px-4 py-3 border-t border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
           <div className="text-sm text-slate-500">
             Hiển thị <span className="font-medium text-slate-900">{filteredProducts.length > 0 ? 1 : 0}</span> đến{' '}
             <span className="font-medium text-slate-900">{filteredProducts.length}</span> trong số{' '}
@@ -416,7 +416,7 @@ export default function Products() {
                   <p className="text-xs text-slate-500 mb-1">Mô tả</p>
                   <p className="text-sm text-slate-700 leading-relaxed">{selectedProduct.description || '—'}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-slate-500 mb-1">Danh mục</p>
                     <p className="text-sm text-slate-700">{selectedProduct.category}</p>
@@ -430,7 +430,7 @@ export default function Products() {
                   <p className="text-xs text-slate-500 mb-1">Tồn kho</p>
                   <p className="text-2xl font-bold text-slate-900">{selectedProduct.stock.toLocaleString()}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                   <div>
                     <p className="text-xs text-slate-500 mb-1">Ngày tạo</p>
                     <p className="text-sm text-slate-700">{new Date(selectedProduct.createdAt).toLocaleString('vi-VN')}</p>
@@ -613,7 +613,7 @@ export default function Products() {
                   placeholder="Nhập mô tả sản phẩm"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-slate-700">Danh mục *</label>
                   <button
