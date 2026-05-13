@@ -7,6 +7,7 @@ const router = Router();
 
 router.get('/',  authenticate, authorize('admin'), UserController.list);
 router.post('/', authenticate, authorize('admin'), UserController.create);
+router.post('/:id/toggle', authenticate, authorize('admin'), UserController.toggle);
 router.patch('/:id', authenticate, authorize('admin'), UserController.update);
 
 export default router;

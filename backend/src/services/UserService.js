@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import { UserRepository } from '../repositories/UserRepository.js';
-import { BadRequest, Conflict } from '../utils/AppError.js';
+import { BadRequest, Conflict, NotFound, UnprocessableEntity } from '../utils/AppError.js';
 
 const VALID_ROLES = ['admin', 'warehouse_staff', 'accountant'];
 
@@ -50,5 +50,20 @@ export const UserService = {
     const updated = await UserRepository.update(id, updateData);
     const { password: _password, ...safe } = updated;
     return safe;
+  },
+
+  async toggleStatus(id, currentAdminId) {
+    const userId = Number(id);
+    const adminId = Number(currentAdminId);
+
+    if (userId === adminId) {
+      throw UnprocessableEntity('Cannot disable your own account');
+    }
+
+    const user = await UserRepository.findById(userId);
+    if (!user) throw NotFound('User not found');
+
+    const nextStatus = user.status === 'active' ? 'disabled' : 'active';
+    return UserRepository.updateStatus(userId, nextStatus);
   },
 };
