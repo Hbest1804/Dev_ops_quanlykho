@@ -42,6 +42,10 @@ jobs:
             default.conf.template \
             ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_PUBLIC_IP }}:/home/${{ secrets.VPS_USERNAME }}/quanlykho/
 
+      - name: Get short SHA for image tags
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
       - name: SSH and Deploy
         run: |
           ssh ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_PUBLIC_IP }} << 'EOF'
@@ -64,18 +68,20 @@ jobs:
             JWT_SECRET="${{ secrets.JWT_SECRET }}"
             BACKEND_PORT="${{ vars.BACKEND_PORT }}"
             FRONTEND_PORT="${{ vars.FRONTEND_PORT }}"
-            BACKEND_IMAGE_TAG="${{ github.sha }}"
-            FRONTEND_IMAGE_TAG="${{ github.sha }}"
+            BACKEND_IMAGE_TAG="${{ vars.sha_short }}"
+            FRONTEND_IMAGE_TAG="${{ vars.sha_short }}"
             NGINX_PORT="${{ vars.NGINX_PORT }}"
             BACKEND_HOST="${{ vars.BACKEND_HOST }}"
             FRONTEND_HOST="${{ vars.FRONTEND_HOST }}"
             API_DOMAIN="${{ vars.API_DOMAIN }}"
             WEB_DOMAIN="${{ vars.WEB_DOMAIN }}"
-            EOT
+            FRONATEND_IMAGE_TAG="${{ vars.sha_short }}"
+            BACKEND_IMAGE_TAG="${{ vars.sha_short }}"
+          EOT
 
             # Pull images
-            docker pull ghcr.io/hbest1804/quanlykho-backend:${{ github.sha }}
-            docker pull ghcr.io/hbest1804/quanlykho-frontend:${{ github.sha }}
+            docker pull ghcr.io/hbest1804/quanlykho-backend:${{ vars.sha_short }}
+            docker pull ghcr.io/hbest1804/quanlykho-frontend:${{ vars.sha_short }}
 
             # Deploy
             docker-compose -f production-compose.yml up -d --remove-orphans
