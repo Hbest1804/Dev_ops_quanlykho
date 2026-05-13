@@ -5,6 +5,30 @@ import { exportToExcel, exportToPDF } from '../lib/export';
 import CustomSelect from '../component/CustomSelect';
 import api from '../lib/api';
 
+type TrendPoint = {
+  label: string;
+  importQty: number;
+  exportQty: number;
+};
+
+type TopProduct = {
+  id: number;
+  code: string;
+  name: string;
+  total_quantity: number;
+};
+
+const formatDateParam = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getRangeDays = (range: string) => range === '30 Ngày qua' ? 30 : 7;
+const getBarHeight = (value: number, max: number) => value === 0 ? 0 : Math.max(4, (value / max) * 100);
+const getTrendMinWidth = (points: number) => points > 7 ? `${points * 44}px` : '100%';
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [chartRange, setChartRange] = useState('7 Ngày qua');
@@ -12,12 +36,21 @@ export default function Dashboard() {
   const [totalProducts,  setTotalProducts]  = useState<number | null>(null);
   const [todayImport,    setTodayImport]    = useState<number | null>(null);
   const [todayExport,    setTodayExport]    = useState<number | null>(null);
+  const [lowStockCount,  setLowStockCount]  = useState<number | null>(null);
+  const [trendData,      setTrendData]      = useState<TrendPoint[]>([]);
+  const [trendLoading,   setTrendLoading]   = useState(true);
+  const [topProducts,    setTopProducts]    = useState<TopProduct[]>([]);
+  const [topLoading,     setTopLoading]     = useState(true);
 
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = formatDateParam(new Date());
 
     api.get('/products', { params: { limit: '1' } })
       .then(({ data }) => setTotalProducts(data.data.total))
+      .catch(() => {});
+
+    api.get('/products', { params: { status: 'LOW_STOCK', limit: '1' } })
+      .then(({ data }) => setLowStockCount(data.data.total))
       .catch(() => {});
 
     api.get('/reports/summary', { params: { from: today, to: today, limit: '1' } })
@@ -28,7 +61,56 @@ export default function Dashboard() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const days = getRangeDays(chartRange);
+    const end = new Date();
+    const dates = Array.from({ length: days }, (_, idx) => {
+      const date = new Date(end);
+      date.setDate(end.getDate() - (days - 1 - idx));
+      return date;
+    });
+
+    setTrendLoading(true);
+    Promise.all(dates.map(date => {
+      const day = formatDateParam(date);
+      return api.get('/reports/summary', {
+        params: { from: day, to: day, limit: '1' },
+        signal: controller.signal,
+      }).then(({ data }) => ({
+        label: days === 7
+          ? date.toLocaleDateString('vi-VN', { weekday: 'short' })
+          : date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
+        importQty: Number(data.data.totals.totalImport) || 0,
+        exportQty: Number(data.data.totals.totalExport) || 0,
+      }));
+    }))
+      .then(setTrendData)
+      .catch(() => {
+        if (!controller.signal.aborted) setTrendData([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setTrendLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [chartRange]);
+
+  useEffect(() => {
+    const to = formatDateParam(new Date());
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - 29);
+    const from = formatDateParam(fromDate);
+
+    setTopLoading(true);
+    api.get('/reports/top-products', { params: { fromDate: from, toDate: to, type: 'export' } })
+      .then(({ data }) => setTopProducts((data.data ?? []).slice(0, 5)))
+      .catch(() => setTopProducts([]))
+      .finally(() => setTopLoading(false));
+  }, []);
+
   const fmt = (n: number | null) => n === null ? '...' : n.toLocaleString();
+  const maxTrendValue = Math.max(1, ...trendData.flatMap(d => [d.importQty, d.exportQty]));
 
   return (
     <div className="space-y-6">
@@ -91,7 +173,7 @@ export default function Dashboard() {
           <div className="flex items-start justify-between mb-4">
             <div>
               <p className="text-xs font-medium text-slate-500 mb-1">Cảnh báo sắp hết hàng</p>
-              <h3 className="text-2xl font-semibold text-red-600">42</h3>
+              <h3 className="text-2xl font-semibold text-red-600">{fmt(lowStockCount)}</h3>
             </div>
             <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
               <AlertTriangle size={20} />
@@ -99,7 +181,12 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-slate-500">Dưới mức tối thiểu</span>
-            <button className="text-[#0058be] font-medium hover:underline cursor-pointer">Xem tất cả</button>
+            <button
+              onClick={() => navigate('/products?status=LOW_STOCK')}
+              className="text-[#0058be] font-medium hover:underline cursor-pointer"
+            >
+              Xem tất cả
+            </button>
           </div>
         </div>
       </div>
@@ -120,16 +207,31 @@ export default function Dashboard() {
             <div className="absolute inset-x-5 top-10 bottom-8 flex flex-col justify-between pointer-events-none">
               {[0, 1, 2, 3, 4].map(i => <div key={i} className="w-full h-px bg-slate-100"></div>)}
             </div>
-            <div className="flex-1 flex items-end justify-around pb-6 px-4 relative z-10 mt-6 pt-4 h-48">
-              {[{ i: 60, e: 40 }, { i: 80, e: 45 }, { i: 50, e: 65 }, { i: 90, e: 30 }, { i: 70, e: 80 }, { i: 40, e: 55 }, { i: 85, e: 70 }].map((d, idx) => (
-                <div key={idx} className="flex gap-1.5 w-full justify-center h-full items-end group relative">
-                  <div className="w-4 sm:w-6 bg-[#0058be] rounded-t transition-all hover:opacity-80" style={{ height: `${d.i}%` }}></div>
-                  <div className="w-4 sm:w-6 bg-[#00a472] rounded-t transition-all hover:opacity-80" style={{ height: `${d.e}%` }}></div>
+            <div className="overflow-x-auto overflow-y-hidden relative z-10 mt-6">
+              <div
+                className="flex flex-col"
+                style={{ minWidth: getTrendMinWidth(trendData.length) }}
+              >
+                <div className="flex items-end justify-around pb-6 px-4 pt-4 h-48">
+                  {trendLoading ? (
+                    <div className="w-full self-center text-center text-sm text-slate-400">Đang tải...</div>
+                  ) : trendData.length === 0 ? (
+                    <div className="w-full self-center text-center text-sm text-slate-400">Không có dữ liệu.</div>
+                  ) : trendData.map((d, idx) => (
+                    <div key={`${d.label}-${idx}`} className="flex gap-1 w-10 shrink-0 justify-center h-full items-end group relative">
+                      <div className="w-3 sm:w-3.5 bg-[#0058be] rounded-t transition-all hover:opacity-80" style={{ height: `${getBarHeight(d.importQty, maxTrendValue)}%` }} title={`Nhập: ${d.importQty.toLocaleString()}`}></div>
+                      <div className="w-3 sm:w-3.5 bg-[#00a472] rounded-t transition-all hover:opacity-80" style={{ height: `${getBarHeight(d.exportQty, maxTrendValue)}%` }} title={`Xuất: ${d.exportQty.toLocaleString()}`}></div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div className="flex justify-around text-xs text-slate-500 font-medium px-4 mt-2">
-              {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <span key={d} className="w-full text-center">{d}</span>)}
+                <div className="flex justify-around text-xs text-slate-500 font-medium px-4 mt-2">
+                  {trendData.map((d, idx) => (
+                    <span key={`${d.label}-${idx}`} className="w-10 shrink-0 text-center whitespace-nowrap text-[11px]">
+                      {d.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -147,19 +249,17 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-[13px]">
-                {[
-                  { name: 'Kệ Pallet Công nghiệp', sku: 'PR-1001', qty: '1,432' },
-                  { name: 'Bình điện Xe nâng 48V', sku: 'FB-4800', qty: '890' },
-                  { name: 'Cuộn màng PE', sku: 'SW-500', qty: '754' },
-                  { name: 'Băng tải con lăn', sku: 'CB-200', qty: '612' },
-                  { name: 'Dây đai an toàn', sku: 'SH-900', qty: '420' },
-                ].map((item, i) => (
-                  <tr key={i} className="hover:bg-slate-50/80 transition-colors">
+                {topLoading ? (
+                  <tr><td colSpan={2} className="py-8 px-4 text-center text-slate-400">Đang tải...</td></tr>
+                ) : topProducts.length === 0 ? (
+                  <tr><td colSpan={2} className="py-8 px-4 text-center text-slate-400">Không có dữ liệu.</td></tr>
+                ) : topProducts.map(item => (
+                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3 px-4">
                       <div className="font-medium text-slate-900">{item.name}</div>
-                      <div className="text-xs text-slate-500 mt-0.5">Mã: {item.sku}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Mã: {item.code}</div>
                     </td>
-                    <td className="py-3 px-4 text-right font-medium text-slate-700">{item.qty}</td>
+                    <td className="py-3 px-4 text-right font-medium text-slate-700">{Number(item.total_quantity).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
