@@ -77,14 +77,12 @@ jobs:
             WEB_DOMAIN="${{ vars.WEB_DOMAIN }}"
           EOT
 
-            # Pull images
-            docker pull ghcr.io/hbest1804/quanlykho-backend:sha-${{ steps.vars.outputs.sha_short }}
-            docker pull ghcr.io/hbest1804/quanlykho-frontend:sha-${{ steps.vars.outputs.sha_short }}
-
+            docker compose -f production-compose.yml down --remove-orphans
+            
             # Deploy
-            docker compose -f production-compose.yml up -d --remove-orphans
+            docker compose -f production-compose.yml up -d --force-recreate --remove-orphans
 
             # Cleanup
             docker image prune -af
-
+          
           EOF
