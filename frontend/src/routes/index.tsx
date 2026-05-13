@@ -12,7 +12,6 @@ import StockOutDetail from '../pages/StockOutDetail';
 import Reports from '../pages/Reports';
 import Users from '../pages/Users';
 import Account from '../pages/Account';
-import Transactions from '../pages/Transactions';
 import { ErrorBoundary } from '../component/ErrorBoundary';
 
 type Role = 'admin' | 'warehouse_staff' | 'accountant';
@@ -59,9 +58,6 @@ export default function AppRoutes() {
           <RoleRoute roles={['admin']}><Users /></RoleRoute>
         } />
         <Route path="account" element={<Account />} />
-        <Route path="transactions/:productCode" element={
-          <RoleRoute roles={['admin', 'warehouse_staff']}><Transactions /></RoleRoute>
-        } />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
