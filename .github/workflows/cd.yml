@@ -30,6 +30,11 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.VPS_PUBLIC_IP }} >> ~/.ssh/known_hosts
 
+      - name: Ensure folder exists
+        run: |
+          ssh ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_PUBLIC_IP }} \
+          "mkdir -p /home/${{ secrets.VPS_USERNAME }}/quanlykho"
+
       - name: Copy files to VPS (rsync)
         run: |
           rsync -avz \
@@ -42,10 +47,7 @@ jobs:
           ssh ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_PUBLIC_IP }} << 'EOF'
 
             set -e
-
-            cd /home/${VPS_USER}/quanlykho 2>/dev/null || true
-
-            mkdir -p /home/${{ secrets.VPS_USERNAME }}/quanlykho
+            
             cd /home/${{ secrets.VPS_USERNAME }}/quanlykho
 
             # Create .env
