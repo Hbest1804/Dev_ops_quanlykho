@@ -172,10 +172,10 @@ export default function Users() {
     setTogglingUserId(selectedUser.id);
     try {
       const { data } = await api.post(`/users/${selectedUser.id}/toggle`);
-      const nextStatus: User['status'] = data.data.status;
-      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, status: nextStatus } : u));
-      setSelectedUser(prev => prev ? { ...prev, status: nextStatus } : prev);
-      toast.success(nextStatus === 'disabled' ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản');
+      const updated: User = data.data;
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? updated : u));
+      setSelectedUser(updated);
+      toast.success(updated.status === 'disabled' ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Không thể cập nhật trạng thái tài khoản');
     } finally {

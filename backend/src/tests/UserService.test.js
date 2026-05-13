@@ -52,21 +52,37 @@ describe('UserService.toggleStatus', () => {
 
   it('UT-USR-TOGGLE-001 | Khóa tài khoản active', async () => {
     UserRepository.findById.mockResolvedValue({ id: 5, status: 'active' });
-    UserRepository.updateStatus.mockResolvedValue({ id: 5, status: 'disabled' });
+    UserRepository.updateStatus.mockResolvedValue({
+      id: 5,
+      name: 'User',
+      email: 'user@example.com',
+      role: 'warehouse_staff',
+      status: 'disabled',
+      created_at: '2026-01-01T00:00:00.000Z',
+      updated_at: '2026-01-02T00:00:00.000Z',
+    });
 
     const result = await UserService.toggleStatus(5, 1);
 
-    expect(result).toEqual({ id: 5, status: 'disabled' });
+    expect(result).toMatchObject({ id: 5, status: 'disabled', updated_at: '2026-01-02T00:00:00.000Z' });
     expect(UserRepository.updateStatus).toHaveBeenCalledWith(5, 'disabled');
   });
 
   it('UT-USR-TOGGLE-002 | Mở khóa tài khoản disabled', async () => {
     UserRepository.findById.mockResolvedValue({ id: 5, status: 'disabled' });
-    UserRepository.updateStatus.mockResolvedValue({ id: 5, status: 'active' });
+    UserRepository.updateStatus.mockResolvedValue({
+      id: 5,
+      name: 'User',
+      email: 'user@example.com',
+      role: 'warehouse_staff',
+      status: 'active',
+      created_at: '2026-01-01T00:00:00.000Z',
+      updated_at: '2026-01-02T00:00:00.000Z',
+    });
 
     const result = await UserService.toggleStatus(5, 1);
 
-    expect(result).toEqual({ id: 5, status: 'active' });
+    expect(result).toMatchObject({ id: 5, status: 'active', updated_at: '2026-01-02T00:00:00.000Z' });
     expect(UserRepository.updateStatus).toHaveBeenCalledWith(5, 'active');
   });
 
