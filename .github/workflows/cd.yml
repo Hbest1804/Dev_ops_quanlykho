@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '.github/workflows/cd.yml'
+      - 'docs/**'
+      - 'backend/README.md'
+      - 'backend/readme.md'
+      - 'frontend/README.md'
+      - 'frontend/readme.md'
 
 jobs:
   call-ci-logic:

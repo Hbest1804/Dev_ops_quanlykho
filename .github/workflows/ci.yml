@@ -6,10 +6,24 @@ on:
     branches:
       - develop
       - main
+    paths-ignore:
+      - '.github/workflows/cd.yml'
+      - 'docs/**'
+      - 'backend/README.md'
+      - 'backend/readme.md'
+      - 'frontend/README.md'
+      - 'frontend/readme.md'
   pull_request:
     branches:
       - develop
       - main
+    paths-ignore:
+      - '.github/workflows/cd.yml'
+      - 'docs/**'
+      - 'backend/README.md'
+      - 'backend/readme.md'
+      - 'frontend/README.md'
+      - 'frontend/readme.md'
 
 env:
   REGISTRY: ghcr.io
