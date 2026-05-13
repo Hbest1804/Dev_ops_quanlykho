@@ -173,6 +173,10 @@ export default function Users() {
     try {
       const { data } = await api.post(`/users/${selectedUser.id}/toggle`);
       const updated: User = data.data;
+      if (!updated) {
+        toast.error('Không thể cập nhật trạng thái tài khoản');
+        return;
+      }
       setUsers(prev => prev.map(u => u.id === selectedUser.id ? updated : u));
       setSelectedUser(updated);
       toast.success(updated.status === 'disabled' ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản');

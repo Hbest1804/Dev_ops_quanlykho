@@ -102,4 +102,20 @@ describe('UserService.toggleStatus', () => {
 
     expect(UserRepository.updateStatus).not.toHaveBeenCalled();
   });
+
+  it('UT-USR-TOGGLE-005 | ID không hợp lệ', async () => {
+    await expect(UserService.toggleStatus('abc', 1))
+      .rejects.toMatchObject({ status: 400, message: 'Invalid user ID' });
+
+    expect(UserRepository.findById).not.toHaveBeenCalled();
+    expect(UserRepository.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it('UT-USR-TOGGLE-006 | User bị xóa trước khi update status', async () => {
+    UserRepository.findById.mockResolvedValue({ id: 5, status: 'active' });
+    UserRepository.updateStatus.mockResolvedValue(null);
+
+    await expect(UserService.toggleStatus(5, 1))
+      .rejects.toMatchObject({ status: 404, message: 'User not found' });
+  });
 });
