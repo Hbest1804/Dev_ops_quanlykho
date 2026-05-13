@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { UserPlus, Search, X, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { UserPlus, Search, X, Eye, EyeOff, KeyRound, Lock, Unlock } from 'lucide-react';
 import CustomSelect from '../component/CustomSelect';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { useConfirm } from '../component/useConfirm';
 
 type User = {
   id: number;
@@ -50,9 +51,10 @@ const formatDate = (iso: string) =>
 type AddForm = { name: string; email: string; password: string; role: string; };
 const EMPTY_ADD: AddForm = { name: '', email: '', password: '', role: 'Thủ kho' };
 
-type EditForm = { name: string; email: string; password: string; role: string; status: string; };
+type EditForm = { name: string; email: string; password: string; role: string; };
 
 export default function Users() {
+  const { confirm, dialog } = useConfirm();
   const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState('');
 
@@ -67,7 +69,7 @@ export default function Users() {
 
   // Detail drawer
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ name: '', email: '', password: '', role: '', status: '' });
+  const [editForm, setEditForm] = useState<EditForm>({ name: '', email: '', password: '', role: '' });
   const [showEditPwd, setShowEditPwd] = useState(false);
 
   // Reset password modal
@@ -75,6 +77,7 @@ export default function Users() {
   const [resetPwd, setResetPwd] = useState('');
   const [showResetPwd, setShowResetPwd] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [togglingUserId, setTogglingUserId] = useState<number | null>(null);
 
   const openAddModal = () => {
     setAddForm(EMPTY_ADD);
@@ -92,7 +95,6 @@ export default function Users() {
       email: u.email,
       password: '',
       role: ROLE_LABELS[u.role],
-      status: u.status === 'active' ? 'Hoạt động' : 'Vô hiệu hoá',
     });
     setShowEditPwd(false);
     setSelectedUser(u);
@@ -134,7 +136,6 @@ export default function Users() {
         name: editForm.name.trim(),
         email: editForm.email.trim(),
         role: ROLE_VALUES[editForm.role],
-        status: editForm.status === 'Hoạt động' ? 'active' : 'disabled',
       };
       
       if (editForm.password.trim()) {
@@ -150,6 +151,35 @@ export default function Users() {
       toast.success('Đã cập nhật người dùng');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Cập nhật thất bại');
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    if (!selectedUser) return;
+
+    const disabling = selectedUser.status === 'active';
+    const ok = await confirm({
+      title: disabling ? 'Khóa tài khoản' : 'Mở khóa tài khoản',
+      message: disabling
+        ? `Bạn có chắc muốn khóa tài khoản ${selectedUser.name}? Người dùng này sẽ không thể đăng nhập.`
+        : `Bạn có chắc muốn mở khóa tài khoản ${selectedUser.name}?`,
+      confirmLabel: disabling ? 'Khóa' : 'Mở khóa',
+      cancelLabel: 'Quay lại',
+      variant: disabling ? 'danger' : 'primary',
+    });
+    if (!ok) return;
+
+    setTogglingUserId(selectedUser.id);
+    try {
+      const { data } = await api.post(`/users/${selectedUser.id}/toggle`);
+      const nextStatus: User['status'] = data.data.status;
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, status: nextStatus } : u));
+      setSelectedUser(prev => prev ? { ...prev, status: nextStatus } : prev);
+      toast.success(nextStatus === 'disabled' ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Không thể cập nhật trạng thái tài khoản');
+    } finally {
+      setTogglingUserId(null);
     }
   };
 
@@ -179,6 +209,7 @@ export default function Users() {
 
   return (
     <div className="space-y-6 flex flex-col flex-1">
+      {dialog}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div>
@@ -359,21 +390,13 @@ export default function Users() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium text-slate-700">Vai trò *</label>
                     <CustomSelect
                       value={editForm.role}
                       onChange={v => setEditForm({ ...editForm, role: v })}
                       options={['Quản trị viên', 'Thủ kho', 'Kế toán']}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium text-slate-700">Trạng thái</label>
-                    <CustomSelect
-                      value={editForm.status}
-                      onChange={v => setEditForm({ ...editForm, status: v })}
-                      options={['Hoạt động', 'Vô hiệu hoá']}
                     />
                   </div>
                 </div>
@@ -388,6 +411,19 @@ export default function Users() {
                 >
                   <KeyRound size={14} />
                   Reset mật khẩu
+                </button>
+                <button
+                  type="button"
+                  onClick={handleToggleStatus}
+                  disabled={togglingUserId === selectedUser.id}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border rounded-lg cursor-pointer transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+                    selectedUser.status === 'active'
+                      ? 'text-red-700 hover:bg-red-50 border-red-200'
+                      : 'text-green-700 hover:bg-green-50 border-green-200'
+                  }`}
+                >
+                  {selectedUser.status === 'active' ? <Lock size={14} /> : <Unlock size={14} />}
+                  {selectedUser.status === 'active' ? 'Khóa' : 'Mở khóa'}
                 </button>
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={closeDrawer} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-lg cursor-pointer">

@@ -63,4 +63,15 @@ export const UserRepository = {
     );
     return rows[0] ?? null;
   },
+
+  async updateStatus(id, status) {
+    const { rows } = await pool.query(
+      `UPDATE users
+          SET status = $1, updated_at = NOW()
+        WHERE id = $2
+        RETURNING id, status`,
+      [status, id]
+    );
+    return rows[0] ?? null;
+  },
 };

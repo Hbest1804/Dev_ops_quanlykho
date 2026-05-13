@@ -34,4 +34,20 @@ export const UserController = {
       next(err);
     }
   },
+
+  async toggle(req, res, next) {
+    try {
+      const user = await UserService.toggleStatus(req.params.id, req.user.sub);
+      res.json({
+        success: true,
+        message: user.status === 'disabled' ? 'Account disabled' : 'Account enabled',
+        data: user,
+      });
+    } catch (err) {
+      if (err.status) {
+        return res.status(err.status).json({ success: false, message: err.message, data: null });
+      }
+      next(err);
+    }
+  },
 };
