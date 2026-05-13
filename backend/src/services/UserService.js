@@ -56,6 +56,10 @@ export const UserService = {
     const userId = Number(id);
     const adminId = Number(currentAdminId);
 
+    if (!Number.isInteger(userId) || userId <= 0) {
+      throw BadRequest('Invalid user ID');
+    }
+
     if (userId === adminId) {
       throw UnprocessableEntity('Cannot disable your own account');
     }
@@ -64,6 +68,8 @@ export const UserService = {
     if (!user) throw NotFound('User not found');
 
     const nextStatus = user.status === 'active' ? 'disabled' : 'active';
-    return UserRepository.updateStatus(userId, nextStatus);
+    const updated = await UserRepository.updateStatus(userId, nextStatus);
+    if (!updated) throw NotFound('User not found');
+    return updated;
   },
 };
