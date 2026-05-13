@@ -220,7 +220,7 @@ export default function Users() {
           <h2 className="text-2xl font-semibold text-[#0b1c30]">Quản lý Người dùng</h2>
           <p className="text-sm text-[#45474c] mt-1">Quản lý quyền truy cập hệ thống và các vai trò trong tổ chức.</p>
         </div>
-        <button onClick={openAddModal} className="bg-[#0058be] text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:bg-[#2170e4] transition-colors flex items-center gap-2 cursor-pointer">
+        <button onClick={openAddModal} className="bg-[#0058be] text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:bg-[#2170e4] transition-colors flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto">
           <UserPlus size={18} />
           Thêm người dùng mới
         </button>
@@ -228,16 +228,16 @@ export default function Users() {
 
       <div className="flex-1 min-h-0">
         <div className="bg-white border border-[#c5c6cd] rounded-xl shadow-sm overflow-hidden flex flex-col min-h-[300px]">
-          <div className="p-4 border-b border-[#e5eeff] bg-[#f8f9ff] flex items-center justify-between shrink-0">
+          <div className="p-4 border-b border-[#e5eeff] bg-[#f8f9ff] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
             <h3 className="text-sm font-semibold text-[#0b1c30]">Nhân sự đang hoạt động</h3>
-            <div className="relative">
+            <div className="relative w-full sm:w-56">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Tìm người dùng..."
-                className="pl-8 pr-3 py-1.5 border border-[#c5c6cd] rounded text-sm focus:border-[#0058be] outline-none w-56"
+                className="pl-8 pr-3 py-1.5 border border-[#c5c6cd] rounded text-sm focus:border-[#0058be] outline-none w-full"
               />
             </div>
           </div>
@@ -328,7 +328,7 @@ export default function Users() {
             {/* Read-only info */}
             <div className="px-6 py-4 border-b border-slate-100 bg-[#f8f9ff] shrink-0">
               <p className="text-xs font-semibold uppercase tracking-wider text-[#45474c] mb-3">Thông tin hệ thống</p>
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-xs text-slate-400 mb-0.5">ID</p>
                   <p className="font-medium text-[#0b1c30]">#{selectedUser.id}</p>
@@ -407,7 +407,7 @@ export default function Users() {
               </div>
 
               {/* Drawer footer */}
-              <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-3 shrink-0">
+              <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => { setResetPwd(''); setShowResetPwd(false); setIsResetOpen(true); }}

@@ -223,12 +223,12 @@ export default function StockIn() {
   return (
     <div className="space-y-6 flex flex-col flex-1">
       {dialog}
-      <div className="flex items-center justify-between shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div>
           <h1 className="text-2xl font-semibold text-[#0b1c30]">Quản lý Nhập kho</h1>
           <p className="text-sm text-[#45474c] mt-1">Xác nhận hàng hoá đến, tạo phiếu nhập và thêm vào hệ thống kho.</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-[#0058be] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#2170e4] transition-colors shadow-sm cursor-pointer">
+        <button onClick={() => setIsModalOpen(true)} className="flex items-center justify-center gap-2 bg-[#0058be] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#2170e4] transition-colors shadow-sm cursor-pointer w-full sm:w-auto">
           <Plus size={18} />
           Tạo phiếu nhập mới
         </button>
@@ -336,9 +336,9 @@ export default function StockIn() {
 
         {/* Pagination */}
         {totalPages > 0 && (
-          <div className="px-4 py-3 border-t border-[#e5eeff] bg-[#f8f9ff] flex items-center justify-between shrink-0">
+          <div className="px-4 py-3 border-t border-[#e5eeff] bg-[#f8f9ff] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
             <p className="text-xs text-slate-500">Tổng {total} phiếu · Trang {page}/{totalPages}</p>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 max-w-full overflow-x-auto">
               <button disabled={page <= 1} onClick={() => fetchOrders(page - 1)} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors">
                 <ChevronLeft size={16} />
               </button>
@@ -377,7 +377,7 @@ export default function StockIn() {
 
             <form onSubmit={handleCreate} noValidate className="flex flex-col flex-1 min-h-0">
               <div className="p-6 flex flex-col gap-5 overflow-y-auto flex-1">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
                     <label className="text-sm font-medium text-slate-700">Nhà cung cấp *</label>
                     <input
@@ -485,7 +485,7 @@ export default function StockIn() {
                 </div>
               </div>
 
-              <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between shrink-0">
+              <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
                 <p className="text-xs text-slate-400">
                   {formData.items.length === 0 ? 'Thêm ít nhất 1 sản phẩm' : `${formData.items.length} dòng hàng · ${formData.items.reduce((s, i) => s + (parseInt(i.quantity) || 0), 0).toLocaleString()} sản phẩm`}
                 </p>

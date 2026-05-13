@@ -158,17 +158,17 @@ export default function Reports() {
           <h1 className="text-2xl font-semibold text-[#0b1c30]">Báo cáo thống kê</h1>
           <p className="text-sm text-[#45474c] mt-1">Xem xu hướng tồn kho và kết xuất báo cáo.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
           <button 
             onClick={() => handleExport('excel')} 
-            className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 w-full sm:w-auto"
             disabled={loading || reportType !== 'summary' || items.length === 0}
           >
             <Download size={18} /> Xuất Excel
           </button>
           <button 
             onClick={() => handleExport('pdf')} 
-            className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="bg-white border border-[#c5c6cd] hover:bg-slate-50 text-[#0b1c30] text-sm font-medium px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 w-full sm:w-auto"
             disabled={loading || reportType !== 'summary' || items.length === 0}
           >
             <FileText size={18} /> Xuất PDF
@@ -177,7 +177,7 @@ export default function Reports() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
         {[
           { label: 'Nhập kho tháng này', value: monthImport, icon: <ArrowDownToLine size={18} className="text-[#0058be] mt-1 shrink-0" /> },
           { label: 'Xuất kho tháng này', value: monthExport, icon: <ArrowUpFromLine size={18} className="text-[#0058be] mt-1 shrink-0" /> },
@@ -221,7 +221,7 @@ export default function Reports() {
           <button 
             onClick={() => fetchReport(1)}
             disabled={loading}
-            className="bg-[#0058be] hover:bg-[#2170e4] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-2 disabled:opacity-50"
+            className="bg-[#0058be] hover:bg-[#2170e4] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0 flex items-center justify-center gap-2 disabled:opacity-50 w-full sm:w-auto"
           >
             {loading ? <Loader2 className="animate-spin" size={18} /> : 'Xem báo cáo'}
           </button>
@@ -325,11 +325,11 @@ export default function Reports() {
         </div>
 
         {reportType === 'summary' && totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-[#e5eeff] flex items-center justify-between text-sm shrink-0">
+          <div className="px-4 py-3 border-t border-[#e5eeff] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm shrink-0">
             <span className="text-slate-500">
               {((page - 1) * LIMIT) + 1}–{Math.min(page * LIMIT, total)} / {total} sản phẩm
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 max-w-full overflow-x-auto">
               <button
                 onClick={() => fetchReport(page - 1)}
                 disabled={page === 1 || loading}
