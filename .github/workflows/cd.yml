@@ -68,20 +68,18 @@ jobs:
             JWT_SECRET="${{ secrets.JWT_SECRET }}"
             BACKEND_PORT="${{ vars.BACKEND_PORT }}"
             FRONTEND_PORT="${{ vars.FRONTEND_PORT }}"
-            BACKEND_IMAGE_TAG="${{ vars.sha_short }}"
-            FRONTEND_IMAGE_TAG="${{ vars.sha_short }}"
+            BACKEND_IMAGE_TAG="${{ steps.vars.outputs.sha_short }}"
+            FRONTEND_IMAGE_TAG="${{ steps.vars.outputs.sha_short }}"
             NGINX_PORT="${{ vars.NGINX_PORT }}"
             BACKEND_HOST="${{ vars.BACKEND_HOST }}"
             FRONTEND_HOST="${{ vars.FRONTEND_HOST }}"
             API_DOMAIN="${{ vars.API_DOMAIN }}"
             WEB_DOMAIN="${{ vars.WEB_DOMAIN }}"
-            FRONATEND_IMAGE_TAG="${{ vars.sha_short }}"
-            BACKEND_IMAGE_TAG="${{ vars.sha_short }}"
           EOT
 
             # Pull images
-            docker pull ghcr.io/hbest1804/quanlykho-backend:${{ vars.sha_short }}
-            docker pull ghcr.io/hbest1804/quanlykho-frontend:${{ vars.sha_short }}
+            docker pull ghcr.io/hbest1804/quanlykho-backend:${{ steps.vars.outputs.sha_short }}
+            docker pull ghcr.io/hbest1804/quanlykho-frontend:${{ steps.vars.outputs.sha_short }}
 
             # Deploy
             docker-compose -f production-compose.yml up -d --remove-orphans
