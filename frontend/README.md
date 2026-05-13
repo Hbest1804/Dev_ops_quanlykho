@@ -1,16 +1,157 @@
-# React + Vite
+# WareFlow Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend của WareFlow được xây dựng bằng React 19, TypeScript, Vite 8 và TailwindCSS v4. Ứng dụng gọi backend qua route `/api` trong môi trường Docker/nginx hoặc qua Vite proxy khi chạy dev thủ công.
 
-Currently, two official plugins are available:
+## Công nghệ
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19
+- TypeScript
+- Vite 8
+- TailwindCSS v4
+- React Router DOM v7
+- Axios
+- Vitest
+- ESLint
 
-## React Compiler
+## Biến môi trường
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Tạo file `.env` từ mẫu:
 
-## Expanding the ESLint configuration
+```bash
+cp .env.example .env
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Các biến frontend đang dùng:
+
+| Biến | Dùng khi | Mô tả |
+| --- | --- | --- |
+| `BACKEND_URL` | Dev thủ công hoặc Docker dev | URL backend cho Vite proxy. Không được expose vào browser. |
+| `VITE_API_URL` | Build frontend standalone | Base URL public của backend. Nếu để trống, frontend gọi API qua `/api`. |
+| `FRONTEND_PORT` | Docker production image | Port Nginx trong container frontend production. |
+
+Mặc định nên để `VITE_API_URL=` khi chạy trong repo này, vì dev dùng Vite proxy và production dùng nginx reverse proxy `/api`.
+
+## Development thủ công
+
+Yêu cầu backend đang chạy tại `http://localhost:3000`.
+
+`.env` khuyến nghị:
+
+```env
+NODE_ENV=development
+BACKEND_URL=http://localhost:3000
+VITE_API_URL=
+FRONTEND_PORT=5173
+```
+
+Cài dependencies và chạy dev server:
+
+```bash
+npm install
+npm run dev
+```
+
+Frontend chạy tại:
+
+```text
+http://localhost:5173
+```
+
+Khi gọi `/api/*`, Vite sẽ proxy sang `BACKEND_URL`.
+
+## Development bằng Docker Compose
+
+Chạy từ thư mục gốc repo:
+
+```bash
+docker compose up --build frontend
+```
+
+Hoặc chạy toàn bộ hệ thống:
+
+```bash
+docker compose up --build
+```
+
+Trong `docker-compose.yml`, frontend dev dùng:
+
+```env
+BACKEND_URL=http://backend:3000
+```
+
+Không cần set `VITE_API_URL` cho Docker dev. Vite proxy sẽ forward `/api` sang service backend trong network Docker.
+
+## Production build thủ công
+
+Nếu frontend được phục vụ cùng domain với reverse proxy `/api`, giữ `VITE_API_URL` trống:
+
+```env
+NODE_ENV=production
+VITE_API_URL=
+```
+
+Build:
+
+```bash
+npm ci
+npm run build
+```
+
+Preview local:
+
+```bash
+npm run preview
+```
+
+Nếu deploy frontend standalone, ví dụ frontend và backend khác domain, set `VITE_API_URL` trước khi build:
+
+```env
+NODE_ENV=production
+VITE_API_URL=https://api.example.com
+```
+
+Khi đó Axios sẽ gọi:
+
+```text
+https://api.example.com/api
+```
+
+## Production bằng Docker
+
+Build production image:
+
+```bash
+docker build --target production -t wareflow-frontend .
+```
+
+Run standalone:
+
+```bash
+docker run --rm -p 8080:80 -e FRONTEND_PORT=80 wareflow-frontend
+```
+
+Trong production chính của repo, frontend image được chạy bởi `production-compose.yml` từ thư mục gốc:
+
+```bash
+docker compose -f production-compose.yml up -d frontend
+```
+
+Production compose dùng nginx reverse proxy ở service `nginx`, nên frontend vẫn gọi API qua `/api` cùng origin. Vì vậy image frontend production mặc định không cần `VITE_API_URL`.
+
+## Scripts
+
+```bash
+npm run dev      # chạy Vite dev server
+npm run build    # build production
+npm run preview  # preview dist local
+npm run lint     # chạy ESLint
+npm test         # chạy Vitest
+```
+
+## Kiểm tra trước khi merge
+
+```bash
+npm run lint
+npm test
+npm run build
+```
